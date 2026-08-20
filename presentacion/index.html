@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visión Estéreo y Profundidad</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="background-effects">
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+    </div>
+
+    <div class="presentation-container">
+        
+        <!-- SLIDE 1: Título -->
+        <section class="slide active" id="slide-1">
+            <div class="glass-panel text-center">
+                <div class="badge">Clase 12</div>
+                <h1 class="gradient-text">Visión Estéreo</h1>
+                <p class="subtitle">Descubriendo la profundidad a través de la Inteligencia Artificial y OpenCV</p>
+                <div class="nav-hint">
+                    <p>Presiona las flechas <span>◀</span> <span>▶</span> para navegar</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 2: Concepto Base -->
+        <section class="slide" id="slide-2">
+            <div class="glass-panel">
+                <h2>¿Qué es la Visión Estéreo?</h2>
+                <div class="two-columns">
+                    <div class="col">
+                        <p>Inspirada en la biología humana, la visión estéreo utiliza <strong>dos cámaras</strong> (como nuestros ojos) separadas por una distancia fija llamada <strong>Baseline (Línea Base)</strong>.</p>
+                        <ul class="feature-list">
+                            <li><span class="icon">👁️</span> Emula la percepción humana.</li>
+                            <li><span class="icon">📏</span> Permite calcular mapas de profundidad (Depth Maps).</li>
+                            <li><span class="icon">🤖</span> Fundamental en robótica, vehículos autónomos y reconocimiento espacial.</li>
+                        </ul>
+                    </div>
+                    <div class="col visual-col">
+                        <div class="eyes-container">
+                            <div class="camera-lens">L</div>
+                            <div class="baseline-line">Baseline (B)</div>
+                            <div class="camera-lens">R</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 3: Disparidad (Interactivo) -->
+        <section class="slide" id="slide-3">
+            <div class="glass-panel">
+                <h2>El Concepto de Disparidad</h2>
+                <p>La <strong>disparidad</strong> es la diferencia en la posición de un objeto entre la cámara izquierda y la derecha. ¡Pruébalo tú mismo!</p>
+                
+                <div class="interactive-demo">
+                    <div class="viewports">
+                        <div class="viewport left-cam">
+                            <div class="label">Cámara Izquierda</div>
+                            <div class="object" id="obj-left"></div>
+                        </div>
+                        <div class="viewport right-cam">
+                            <div class="label">Cámara Derecha</div>
+                            <div class="object" id="obj-right"></div>
+                        </div>
+                    </div>
+                    <div class="controls">
+                        <label for="depth-slider">Acercar / Alejar Objeto (Profundidad)</label>
+                        <input type="range" id="depth-slider" min="1" max="100" value="50">
+                        <div class="stats">
+                            <div class="stat-box">Disparidad: <span id="disp-val" class="highlight">20px</span></div>
+                            <div class="stat-box">Distancia: <span id="dist-val" class="highlight">5.0m</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 4: La Fórmula -->
+        <section class="slide" id="slide-4">
+            <div class="glass-panel text-center formula-slide">
+                <h2>La Fórmula de la Profundidad</h2>
+                <div class="math-formula">
+                    <span class="var z">Z</span> = 
+                    <div class="fraction">
+                        <span class="numerator"><span class="var f">F</span> × <span class="var b">B</span></span>
+                        <span class="denominator"><span class="var d">D</span></span>
+                    </div>
+                </div>
+                <div class="formula-legend">
+                    <div class="legend-item"><span class="var z">Z</span> = Profundidad / Distancia al objeto (Lo que queremos averiguar)</div>
+                    <div class="legend-item"><span class="var f">F</span> = Distancia Focal de la cámara (Propiedad física de la lente)</div>
+                    <div class="legend-item"><span class="var b">B</span> = Baseline (Distancia entre las dos cámaras)</div>
+                    <div class="legend-item"><span class="var d">D</span> = Disparidad (Diferencia de píxeles calculada por la IA)</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 5: Geometría (Triangulación) -->
+        <section class="slide" id="slide-5">
+            <div class="glass-panel">
+                <h2>¿De dónde sale la fórmula? (Triangulación)</h2>
+                <div class="two-columns">
+                    <div class="col">
+                        <p>La fórmula matemática nace de la semejanza de triángulos. Viendo las cámaras desde arriba:</p>
+                        <ul class="feature-list">
+                            <li><span class="var f">F</span>: La luz cruza el lente y se proyecta en el sensor a una distancia focal constante.</li>
+                            <li><span class="var b">B</span>: Es la separación (Baseline) entre ambas lentes.</li>
+                            <li><span class="var d">D</span>: Es la suma del desplazamiento del objeto en ambos sensores (x1 + x2).</li>
+                        </ul>
+                        <p>Por geometría pura, el triángulo grande (hasta el objeto) es proporcional al triángulo pequeño (dentro de las cámaras). Así, la profundidad <span class="var z">Z</span> es matemáticamente medible gracias a <span class="var d">D</span>.</p>
+                        <button id="btn-animate" class="nav-btn" style="margin-top: 1.5rem; width: 100%; border-color: #eab308; color: #eab308;">▶ Demostración Visual</button>
+                    </div>
+                    <div class="col visual-col">
+                        <div class="triangulation-diagram" style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 20px;">
+                            <svg viewBox="0 0 400 330" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                        <feGaussianBlur stdDeviation="3" result="blur" />
+                                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                    </filter>
+                                </defs>
+                                <!-- Z line -->
+                                <line x1="140" y1="40" x2="140" y2="180" stroke="#f43f5e" stroke-width="2" stroke-dasharray="5,5"/>
+                                <text x="150" y="110" fill="#f43f5e" font-size="16" font-style="italic" font-weight="bold">Z</text>
+                                <!-- Baseline -->
+                                <line x1="100" y1="180" x2="300" y2="180" stroke="#10b981" stroke-width="4"/>
+                                <text x="200" y="170" fill="#10b981" font-size="16" font-weight="bold" text-anchor="middle">B (Baseline)</text>
+                                <!-- Lenses -->
+                                <rect x="70" y="175" width="60" height="10" rx="5" fill="#64748b"/>
+                                <rect x="270" y="175" width="60" height="10" rx="5" fill="#64748b"/>
+                                <text x="100" y="165" fill="#e2e8f0" font-size="12" text-anchor="middle">Lente Izq</text>
+                                <text x="300" y="165" fill="#e2e8f0" font-size="12" text-anchor="middle">Lente Der</text>
+                                <!-- Rays -->
+                                <line x1="140" y1="40" x2="80" y2="250" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+                                <line x1="140" y1="40" x2="380" y2="250" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+                                <!-- Focal Length -->
+                                <line x1="100" y1="180" x2="100" y2="250" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,4"/>
+                                <text x="85" y="220" fill="#3b82f6" font-size="14" font-weight="bold">F</text>
+                                <line x1="300" y1="180" x2="300" y2="250" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,4"/>
+                                <text x="315" y="220" fill="#3b82f6" font-size="14" font-weight="bold">F</text>
+                                <!-- Sensors -->
+                                <line x1="20" y1="250" x2="180" y2="250" stroke="#cbd5e1" stroke-width="4"/>
+                                <line x1="220" y1="250" x2="390" y2="250" stroke="#cbd5e1" stroke-width="4"/>
+                                <text x="100" y="275" fill="#94a3b8" font-size="12" text-anchor="middle">Sensor Izquierdo</text>
+                                <text x="300" y="275" fill="#94a3b8" font-size="12" text-anchor="middle">Sensor Derecho</text>
+                                <!-- Centers of Sensors -->
+                                <line x1="100" y1="245" x2="100" y2="255" stroke="white" stroke-width="2"/>
+                                <line x1="300" y1="245" x2="300" y2="255" stroke="white" stroke-width="2"/>
+                                <!-- Projected points -->
+                                <circle cx="80" cy="250" r="5" fill="#eab308" filter="url(#glow)"/>
+                                <circle cx="380" cy="250" r="5" fill="#eab308" filter="url(#glow)"/>
+                                <!-- Object -->
+                                <circle cx="140" cy="40" r="8" fill="#3b82f6" filter="url(#glow)"/>
+                                <text x="140" y="25" fill="white" font-size="14" text-anchor="middle">Objeto (P)</text>
+                                <!-- Disparity text -->
+                                <line x1="80" y1="235" x2="100" y2="235" stroke="#eab308" stroke-width="2" />
+                                <text x="90" y="230" fill="#eab308" font-size="14" font-weight="bold" text-anchor="middle">x1</text>
+                                <line x1="300" y1="235" x2="380" y2="235" stroke="#eab308" stroke-width="2" />
+                                <text x="340" y="230" fill="#eab308" font-size="14" font-weight="bold" text-anchor="middle">x2</text>
+                                <text x="200" y="315" fill="#eab308" font-size="16" font-weight="bold" text-anchor="middle">Disparidad D = x1 + x2</text>
+
+                                <!-- ANIMATION LAYER -->
+                                <g id="anim-layer" style="pointer-events: none;">
+                                    <polygon id="anim-big-tri" points="140,40 100,180 300,180" fill="rgba(59, 130, 246, 0)" stroke="#3b82f6" stroke-width="0" style="transition: all 1s ease-in-out;" />
+                                    <polygon id="anim-small-1" points="100,180 100,250 80,250" fill="rgba(234, 179, 8, 0)" stroke="#eab308" stroke-width="0" style="transition: all 1s ease-in-out;" />
+                                    <polygon id="anim-small-2" points="300,180 300,250 380,250" fill="rgba(234, 179, 8, 0)" stroke="#eab308" stroke-width="0" style="transition: all 1s ease-in-out;" />
+                                </g>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 6: Animación Matemática -->
+        <section class="slide" id="slide-6">
+            <div class="glass-panel text-center">
+                <h2>Cálculo de Profundidad (Visual)</h2>
+                <p>Moviendo los números entendemos cómo funciona la proporción de los triángulos semejantes en la realidad.</p>
+                
+                <div class="math-diagram-container" style="position: relative; height: 350px; background: rgba(0,0,0,0.3); border-radius: 16px; margin: 20px 0; overflow: hidden;">
+                    <svg viewBox="0 0 800 350" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Pequeño Triángulo (Sensor) -->
+                        <polygon points="170,110 150,180 250,180" fill="rgba(234, 179, 8, 0.2)" stroke="#eab308" stroke-width="2" />
+                        <text x="200" y="90" fill="#eab308" font-size="16" text-anchor="middle" font-weight="bold">Triángulo Interno (IA)</text>
+                        <line x1="170" y1="110" x2="170" y2="180" stroke="#eab308" stroke-dasharray="4,4" />
+                        
+                        <!-- Triángulo Grande (Mundo) -->
+                        <polygon points="490,40 450,180 650,180" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" stroke-width="2" />
+                        <text x="550" y="20" fill="#3b82f6" font-size="16" text-anchor="middle" font-weight="bold">Triángulo Externo (Mundo)</text>
+                        <line x1="490" y1="40" x2="490" y2="180" stroke="#3b82f6" stroke-dasharray="4,4" />
+                        
+                        <!-- Elementos animables -->
+                        <text id="anim-val-D" x="200" y="210" fill="#eab308" font-size="20" font-weight="bold" text-anchor="middle" style="transition: all 1s;">D = 100</text>
+                        <text id="anim-val-F" x="180" y="150" fill="#eab308" font-size="20" font-weight="bold" text-anchor="start" style="transition: all 1s;">F = 70</text>
+                        
+                        <text id="anim-val-B" x="550" y="210" fill="#3b82f6" font-size="20" font-weight="bold" text-anchor="middle" style="transition: all 1s;">B = 200</text>
+                        <text id="anim-val-Z" x="500" y="120" fill="#f43f5e" font-size="24" font-weight="bold" text-anchor="start" style="transition: all 1s;">Z = ?</text>
+
+                        <!-- Ecuación central (oculta al inicio) -->
+                        <text id="anim-eq-div" x="400" y="270" fill="white" font-size="24" font-weight="bold" text-anchor="middle" opacity="0" style="transition: all 1s;">────────</text>
+                        <text id="anim-eq-res" x="400" y="265" fill="#10b981" font-size="30" font-weight="bold" text-anchor="middle" opacity="0" style="transition: all 0.5s;"></text>
+                    </svg>
+                </div>
+                <button id="btn-math" class="nav-btn" style="width: 100%; border-color: #3b82f6; color: #3b82f6; margin-top: 10px;">▶ 1. Comparar las Bases</button>
+            </div>
+        </section>
+
+        <!-- SLIDE 7: Resultados (Cámaras) -->
+        <section class="slide" id="slide-7">
+            <div class="glass-panel">
+                <h2>Resultados: Las Cámaras</h2>
+                <p>Estas son las imágenes que captura nuestro sistema. Nota cómo el cuadrado central está desplazado en la cámara derecha.</p>
+                <div class="result-image-container">
+                    <img src="camaras.png" alt="Cámaras Izquierda y Derecha" class="result-img" style="object-fit: contain;">
+                </div>
+                <div class="code-snippet">
+                    <code>stereo = cv2.StereoSGBM_create(numDisparities=64, blockSize=5...)</code>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 8: Resultados (Mapas) -->
+        <section class="slide" id="slide-8">
+            <div class="glass-panel">
+                <h2>Resultados: Mapas de Calor</h2>
+                <p>El algoritmo SGBM procesa las cámaras y genera el mapa de disparidad. Luego, con la fórmula mágica, obtenemos la profundidad en metros.</p>
+                <div class="result-image-container">
+                    <img src="mapas.png" alt="Mapas de Disparidad y Profundidad" class="result-img" style="object-fit: contain;">
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 9: Experiencia Práctica: Distancia Focal -->
+        <section class="slide" id="slide-9">
+            <div class="glass-panel">
+                <h2>Experiencia Práctica: Resolución y Focal</h2>
+                <div class="two-columns">
+                    <div class="col">
+                        <p>En nuestra práctica con la cámara ZED notamos que calcular mal la <strong>distancia focal (F)</strong> arruina la medición.</p>
+                        <ul class="feature-list">
+                            <li><span class="icon">🔍</span> Para una webcam 720p, F ≈ 700px.</li>
+                            <li><span class="icon">🎥</span> Nuestra ZED en modo VGA (672x376), tiene F ≈ 358px.</li>
+                            <li><span class="icon">⚠️</span> Al usar F=700 en vez de 358, la fórmula arrojó 195cm en lugar de 100cm (¡casi el doble!).</li>
+                        </ul>
+                        <p>La distancia focal en píxeles depende directamente de la resolución del frame capturado.</p>
+                    </div>
+                    <div class="col visual-col">
+                        <div class="result-image-container" style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 20px;">
+                             <h3 style="color:#eab308; margin-bottom:10px;">Z = (F × B) / D</h3>
+                             <p style="font-size: 1.2rem;">F incorrecto (700px):<br><span style="color:#f43f5e">Z = (700 * 12) / 43 = 195 cm</span></p>
+                             <p style="font-size: 1.2rem;">F correcto (358px):<br><span style="color:#10b981">Z = (358 * 12) / 43 = 99.9 cm</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 10: Arquitectura de Detección -->
+        <section class="slide" id="slide-10">
+            <div class="glass-panel">
+                <h2>Híbrido: Inteligencia + OpenCV Clásico</h2>
+                <div class="two-columns">
+                    <div class="col">
+                        <p>Para medir en tiempo real, diseñamos un <strong>algoritmo híbrido</strong> eficiente:</p>
+                        <ul class="feature-list">
+                            <li><span class="icon">🧠</span> <strong>Ojo Izquierdo (YOLOv8 Nano):</strong> Detecta el objeto (ej. "person") y recorta su región delimitadora (ROI).</li>
+                            <li><span class="icon">✂️</span> <strong>Ojo Derecho (Template Match):</strong> No usa IA. Busca los píxeles de esa ROI usando correlación estadística de OpenCV.</li>
+                            <li><span class="icon">⚡</span> <strong>Ventaja:</strong> Ejecutamos el modelo profundo solo una vez por frame, ahorrando cómputo.</li>
+                        </ul>
+                    </div>
+                    <div class="col visual-col" style="display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                        <div style="background:rgba(16,185,129,0.2); border: 2px solid #10b981; padding: 15px; border-radius:10px; width:80%; text-align:center; margin-bottom:10px; font-weight:bold; color:white;">
+                            YOLOv8 (Cámara L)
+                        </div>
+                        <div style="font-size: 20px; color: #eab308; margin: 10px 0;">⬇ Extrae ROI ⬇</div>
+                        <div style="background:rgba(59,130,246,0.2); border: 2px solid #3b82f6; padding: 15px; border-radius:10px; width:80%; text-align:center; margin-top:10px; font-weight:bold; color:white;">
+                            MatchTemplate (Cámara R)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 11: Errores Prácticos -->
+        <section class="slide" id="slide-11">
+            <div class="glass-panel">
+                <h2>El "Efecto 700cm": Falsos Positivos</h2>
+                <p>Durante la práctica vimos mediciones que saltaban a <strong>763 cm</strong> repentinamente. ¿Por qué?</p>
+                <div class="two-columns">
+                    <div class="col">
+                        <ul class="feature-list">
+                            <li><span class="icon">❌</span> El Template Matching encontró un parche en la pared derecha idéntico a nuestro objeto, en vez de a la persona.</li>
+                            <li><span class="icon">📉</span> Esto generó una disparidad (D) errónea y diminuta (ej. 11 píxeles).</li>
+                            <li><span class="icon">♾️</span> Al dividir por un número tan pequeño en <code>(F*B)/D</code>, el objeto pareció saltar al infinito (7.6 metros).</li>
+                        </ul>
+                    </div>
+                    <div class="col visual-col">
+                        <p><strong>Solución Robusta (Restricción Epipolar):</strong> En un sistema estéreo real, el objeto siempre está en la misma línea "Y". Debemos restringir la búsqueda a esa franja horizontal y siempre hacia la izquierda.</p>
+                        <div style="width:100%; height:80px; border:2px dashed #3b82f6; display:flex; justify-content:center; align-items:center; margin-top:20px; color:#3b82f6; font-weight:bold; border-radius:10px;">
+                            Búsqueda confinada a la Franja Epipolar
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 12: Lecciones Aprendidas: USB 2.0 -->
+        <section class="slide" id="slide-12">
+            <div class="glass-panel">
+                <h2>Lecciones Aprendidas: El Cuello de Botella</h2>
+                <div class="two-columns">
+                    <div class="col">
+                        <p>¿Por qué de pronto la medición saltó de 2.2m a 4.5m sin haber tocado una sola línea de código?</p>
+                        <ul class="feature-list">
+                            <li><span class="icon">🔌</span> <strong>Cambio de Puerto:</strong> Al conectar la cámara a un USB 2.0, el cable no tuvo ancho de banda para el video panorámico original.</li>
+                            <li><span class="icon">🗜️</span> <strong>Compresión Silenciosa:</strong> El driver forzó la cámara a 640x480px, aplastando el ancho de la imagen casi a la mitad.</li>
+                            <li><span class="icon">📐</span> <strong>Efecto Cascada:</strong> Al aplastar la imagen, la Disparidad en píxeles cayó a la mitad. ¡Y si divides por la mitad, la Profundidad da el doble!</li>
+                        </ul>
+                    </div>
+                    <div class="col visual-col">
+                        <div class="result-image-container" style="background: rgba(0,0,0,0.3); border-radius: 16px; padding: 20px;">
+                             <h3 style="color:#3b82f6; margin-bottom:10px;">Resolución vs Profundidad</h3>
+                             <p>Ancho Nativo (1344px) ➔ Disparidad = 20px<br><span style="color:#10b981; font-size:1.5rem; font-weight:bold;">Z = 220 cm</span></p>
+                             <div style="width:100%; height:2px; background:#fff; margin:15px 0; opacity:0.2;"></div>
+                             <p>Ancho Comprimido (640px) ➔ Disparidad = 10px<br><span style="color:#f43f5e; font-size:1.5rem; font-weight:bold;">Z = 440 cm</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 13: Lecciones Aprendidas: Hardware vs Software -->
+        <section class="slide" id="slide-13">
+            <div class="glass-panel">
+                <h2>Lecciones Aprendidas: Hardware vs Software</h2>
+                <p>Nuestra cámara conectada "en crudo" presentó dos graves limitantes mecánicas que reparamos por software:</p>
+                <div class="two-columns">
+                    <div class="col">
+                        <h3 style="color:#eab308; margin-top:0;">1. La Trampa del Píxel Entero</h3>
+                        <p>A distancias largas, un salto de <strong>1 solo píxel</strong> (de 5px a 4px) altera la medida de 4.3m a 5.4m.</p>
+                        <p><strong>Solución:</strong> <em>Interpolación Sub-píxel.</em> Creamos una parábola matemática entre los píxeles de correlación para estimar disparidades decimales precisas (ej. 4.82px).</p>
+                    </div>
+                    <div class="col">
+                        <h3 style="color:#eab308; margin-top:0;">2. Convergencia de Lentes</h3>
+                        <p>Sin las "Matrices de Rectificación" de fábrica, la distorsión cilíndrica de la lente altera la disparidad hacia los bordes de la imagen.</p>
+                        <p><strong>Solución:</strong> <em>Calibración Empírica.</em> Inyectamos un compensador lineal a la disparidad basado en qué tan lejos está el objeto del Centro Óptico.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Controles de navegación -->
+    <div class="navigation-controls">
+        <button id="prev-btn" class="nav-btn" disabled>◀ Anterior</button>
+        <div class="progress-indicator">
+            <div class="dot active"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+        <button id="next-btn" class="nav-btn">Siguiente ▶</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

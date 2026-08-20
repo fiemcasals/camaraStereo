@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  zed_cuda_env:
+    build: .
+    container_name: zed_cuda_env
+    # NECESARIO PARA HABILITAR LA TARJETA DE VIDEO NVIDIA
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, video, compute, utility]
+    
+    # Habilitamos todos los privilegios para leer los puertos USB crudos
+    privileged: true
+    
+    # Montamos los puertos USB de la máquina física al contenedor
+    volumes:
+      - /dev:/dev
+      - .:/app
+      
+      # MAGIA PARA VER LA INTERFAZ GRÁFICA DE OPENCV DESDE DENTRO DEL DOCKER (X11 Forwarding)
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      
+    environment:
+      - DISPLAY=$DISPLAY
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - QT_X11_NO_MITSHM=1
+      
+    # Mantenemos el contenedor vivo
+    tty: true
+    stdin_open: true
