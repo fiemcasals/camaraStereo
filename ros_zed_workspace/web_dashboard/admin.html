@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VAD | Usuarios pendientes</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;500&display=swap" rel="stylesheet">
+    <style>
+        body { display: flex; align-items: flex-start; justify-content: center; min-height: 100vh; padding-top: 4rem; }
+        .box {
+            background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 10px;
+            padding: 2rem; width: 100%; max-width: 480px;
+        }
+        .box h1 { font-family: 'Orbitron', sans-serif; color: var(--primary-neon); font-size: 1.3rem; margin-bottom: 1rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        button {
+            background: rgba(45, 212, 191, 0.1); color: var(--primary-neon); border: 1px solid var(--primary-neon);
+            border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer;
+        }
+        #msg { margin-top: 0.8rem; font-size: 0.85rem; color: var(--danger-neon); }
+        a.back-link { color: var(--primary-neon); text-decoration: none; font-size: 0.8rem; display: block; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <a class="back-link" href="map_editor.html">&larr; Volver al editor de mapa</a>
+        <h1>Usuarios pendientes de aprobación</h1>
+        <table id="pendingTable"><tbody></tbody></table>
+        <div id="msg"></div>
+    </div>
+    <script>
+        async function load() {
+            const me = await (await fetch('/api/me')).json();
+            if (!me.authenticated) { window.location.href = 'login.html'; return; }
+            if (!me.is_admin) {
+                document.querySelector('.box').innerHTML = '<p>Esta página es solo para el administrador.</p>';
+                return;
+            }
+            const res = await fetch('/api/admin/pending');
+            const data = await res.json();
+            const tbody = document.querySelector('#pendingTable tbody');
+            tbody.innerHTML = '';
+            if (data.pending.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3">No hay solicitudes pendientes.</td></tr>';
+                return;
+            }
+            data.pending.forEach(u => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${u.username}</td><td>${u.email}</td><td></td>`;
+                const btn = document.createElement('button');
+                btn.textContent = 'Aprobar';
+                btn.onclick = async () => {
+                    await fetch('/api/admin/approve', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: u.username })
+                    });
+                    load();
+                };
+                tr.children[2].appendChild(btn);
+                tbody.appendChild(tr);
+            });
+        }
+        load();
+    </script>
+</body>
+</html>

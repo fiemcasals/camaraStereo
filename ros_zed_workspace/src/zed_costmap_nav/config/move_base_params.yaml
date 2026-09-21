@@ -1,0 +1,33 @@
+# Parametros de move_base en si (no de los costmaps).
+# Por defecto move_base solo calcula el plan global UNA VEZ al recibir la meta
+# (planner_frequency: 0.0) y nunca lo vuelve a recalcular, por lo que el camino
+# queda desactualizado apenas cambia algo en el costmap (un obstaculo nuevo,
+# o incluso pequeno drift de la odometria). Lo forzamos a replanificar seguido.
+planner_frequency: 1.0
+planner_patience: 3.0
+controller_frequency: 10.0
+controller_patience: 3.0
+oscillation_timeout: 5.0
+oscillation_distance: 0.2
+
+# TrajectoryPlannerROS (planificador local) estaba 100% en default, pensado
+# para un robot generico mas rapido. Cuando no encuentra un hueco libre
+# adelante (normal en este escritorio lleno de cosas, sin el auto real
+# moviendose para escapar la situacion) gira en el lugar al maximo (1.0 rad/s)
+# sin parar - se ve mal en el dashboard aunque no rompe nada. Bajamos el tope
+# de giro y las aceleraciones a algo mas razonable para nuestro vehiculo.
+# PROVISORIO: re-ajustar con datos reales en Fase 2.
+TrajectoryPlannerROS:
+  max_vel_x: 0.6
+  min_vel_x: 0.0
+  max_vel_theta: 0.5
+  min_in_place_vel_theta: 0.2
+  acc_lim_x: 1.0
+  acc_lim_theta: 1.0
+  escape_vel: -0.1
+  # sim_time por defecto (1.7s) alcanza a simular ~1m hacia adelante - muy poco
+  # para encontrar una curva suave que esquive un obstaculo al costado, asi que
+  # el planificador terminaba prefiriendo girar en el lugar. Con mas horizonte
+  # de simulacion encuentra la curva y avanza normal (verificado: paso de
+  # linear.x=0/angular.z=1.0 constante a linear.x=0.6/angular.z=0.03).
+  sim_time: 3.0

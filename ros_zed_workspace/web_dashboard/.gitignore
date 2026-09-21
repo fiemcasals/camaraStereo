@@ -1,0 +1,3 @@
+app.db
+mail_outbox.log
+__pycache__/

@@ -1,0 +1,31 @@
+<launch>
+    <!-- Fase 2.3, paso 1 de 2: recoleccion de datos. Corre la camara ZED y el
+         nodo que va guardando frames + etiquetas mientras SE MANEJA MANUAL
+         (no arranca move_base ni la navegacion autonoma -- para eso ya esta
+         navigation.launch). No entrena nada: solo junta el dataset.
+
+         Uso:
+           roslaunch zed_costmap_nav collect_traversability.launch
+           (y despues manejar el auto a mano por el recorrido que se quiera
+           que el sistema aprenda)
+
+         Paso 2 (aparte, offline, en una terminal, NO durante el manejo):
+           python3 traversability_train.py --dataset ~/vad_traversability_dataset
+
+         IMPORTANTE: esto NO incluye ningun nodo de teleoperacion (joystick/
+         teclado) -- eso es RO-08/RF-02 "Implementacion de sistema de
+         conduccion basico" (todavia pendiente). El colector solo escucha
+         /cmd_vel para saber si el auto se esta moviendo; hace falta correr
+         aparte lo que sea que estes usando para manejarlo a mano y que
+         publique ahi (rostopic pub, teleop_twist_keyboard, el joystick del
+         RO-08, lo que tengas armado en el momento).
+    -->
+    <include file="$(find zed_wrapper)/launch/zed.launch" />
+
+    <!-- Mismas transformadas estaticas que usa la navegacion, para que la
+         geometria del etiquetado (camara -> base_link) sea identica. -->
+    <include file="$(find zed_costmap_nav)/launch/sensors_tf.launch" />
+
+    <node pkg="zed_costmap_nav" type="traversability_data_collector.py"
+          name="traversability_data_collector" output="screen" />
+</launch>

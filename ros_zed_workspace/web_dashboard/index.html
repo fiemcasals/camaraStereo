@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jetson ZED | Autonomous Nav HUD</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts: Orbitron for futuristic look -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;500&display=swap" rel="stylesheet">
+    <!-- ROSLibJS for ROS Connection -->
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <header class="header">
+            <div class="logo">ZED<span>NAV</span></div>
+            <div class="status-indicator">
+                <div class="dot" id="ros-status-dot"></div>
+                <span id="ros-status-text">ESPERANDO CONEXIÓN ROS... (MODO SIMULACIÓN)</span>
+            </div>
+            <div class="system-time" id="clock">00:00:00</div>
+            <a href="map_editor.html" style="color: var(--primary-neon); text-decoration: none; font-family: 'Orbitron', sans-serif; font-size: 0.8rem; margin-left: 1rem;">🗺️ Editor de Mapa</a>
+        </header>
+
+        <main class="main-content">
+            <section class="panel map-panel">
+                <div class="panel-header">
+                    <h2>MAPA DE CALOR (COSTMAP 2D)</h2>
+                    <div class="badge">LIVE ZED</div>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="costmapCanvas" width="600" height="600"></canvas>
+                    <div class="crosshair"></div>
+                    <!-- Robot Avatar in Center -->
+                    <div class="robot-avatar">
+                        <div class="arrow-up"></div>
+                    </div>
+                </div>
+                <div class="legend">
+                    <div class="legend-item"><span class="color-box free"></span> Libre</div>
+                    <div class="legend-item"><span class="color-box danger"></span> Precaución</div>
+                    <div class="legend-item"><span class="color-box obstacle"></span> Obstáculo</div>
+                </div>
+            </section>
+
+            <section class="panel map-panel">
+                <div class="panel-header">
+                    <h2>MAPA 2D + RUTA (move_base)</h2>
+                    <div class="badge">LIVE NAV</div>
+                </div>
+                <div class="canvas-container">
+                    <img id="planImg" src="plan_demo.png" alt="Mapa 2D y ruta planificada" style="width:100%;height:100%;object-fit:contain;image-rendering:pixelated;">
+                </div>
+                <div class="legend">
+                    <div class="legend-item"><span class="color-box free"></span> Libre</div>
+                    <div class="legend-item"><span class="color-box danger"></span> Inflación</div>
+                    <div class="legend-item"><span class="color-box obstacle"></span> Obstáculo</div>
+                </div>
+            </section>
+
+            <aside class="sidebar">
+                <section class="panel telemetry-panel">
+                    <div class="panel-header">
+                        <h2>TELEMETRÍA DE RUTA</h2>
+                    </div>
+                    
+                    <div class="data-card">
+                        <div class="data-title">VELOCIDAD LINEAL</div>
+                        <div class="data-value highlight">
+                            <span id="vel-linear">0.00</span>
+                            <span class="unit">m/s</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="vel-linear-bar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="data-card">
+                        <div class="data-title">ÁNGULO DE GIRO (STEERING)</div>
+                        <div class="data-value highlight-alt">
+                            <span id="vel-angular">0.00</span>
+                            <span class="unit">rad/s</span>
+                        </div>
+                        <div class="steering-wheel">
+                            <div class="wheel" id="steering-wheel">
+                                <div class="wheel-spoke"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="data-card ai-status">
+                        <div class="data-title">NAVEGADOR AI</div>
+                        <div class="status-text active">AUTO-DRIVING EN CURSO</div>
+                        <p class="status-detail">Esquivando obstáculos detectados por la cámara estereoscópica.</p>
+                    </div>
+                </section>
+            </aside>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

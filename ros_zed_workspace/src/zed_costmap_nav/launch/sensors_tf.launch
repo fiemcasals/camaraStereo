@@ -1,0 +1,7 @@
+<launch>
+    <!-- Carga sensor_extrinsics.yaml y publica las transformadas estaticas de
+         los sensores adicionales (LiDAR en Fase 1.3). No toca la transformada
+         de la ZED, que ya publica zed_wrapper por su cuenta. -->
+    <rosparam file="$(find zed_costmap_nav)/config/sensor_extrinsics.yaml" command="load" ns="sensor_tf_broadcaster" />
+    <node pkg="zed_costmap_nav" type="sensor_tf_broadcaster.py" name="sensor_tf_broadcaster" output="screen" />
+</launch>

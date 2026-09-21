@@ -1,0 +1,77 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Name: Grid
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Class: rviz/TF
+      Enabled: true
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Class: rviz/LaserScan
+      Color: 255; 0; 0
+      Color Transformer: FlatColor
+      Enabled: true
+      Name: LaserScan_scan
+      Size (Pixels): 6
+      Size (m): 0.05
+      Style: Flat Squares
+      Topic: /scan
+      Value: true
+    - Alpha: 0.7
+      Class: rviz/Map
+      Color Scheme: costmap
+      Enabled: true
+      Name: LocalCostmap
+      Topic: /move_base/local_costmap/costmap
+      Value: true
+    - Alpha: 0.5
+      Class: rviz/Map
+      Color Scheme: costmap
+      Enabled: true
+      Name: GlobalCostmap
+      Topic: /move_base/global_costmap/costmap
+      Value: true
+    - Class: rviz/Path
+      Enabled: true
+      Name: GlobalPlan
+      Topic: /move_base/NavfnROS/plan
+      Value: true
+    - Alpha: 1
+      Class: rviz/PointCloud2
+      Color Transformer: RGB8
+      Enabled: true
+      Name: PointCloud
+      Size (m): 0.02
+      Style: Points
+      Topic: /zed/zed_node/point_cloud/cloud_registered
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 30; 30; 30
+    Fixed Frame: odom
+  Name: root
+  Tools:
+    - Class: rviz/Interact
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/SetGoal
+      Topic: /move_base_simple/goal
+Window Geometry:
+  Height: 900
+  Width: 1400
+  X: 50
+  Y: 50

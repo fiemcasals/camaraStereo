@@ -1,0 +1,33 @@
+# Offsets de sensores respecto a base_link, para georreferenciar bien la ZED
+# y el LiDAR entre si (ver "Decisiones clave" del plan de navegacion).
+#
+# IMPORTANTE - por que la ZED no esta listada aca:
+# El wrapper de la ZED (zed_wrapper) ya publica su propia transformada estatica
+# "zed_left_camera_frame -> base_link" con un offset por defecto (ver comentario
+# en zed-ros-wrapper/zed_wrapper/params/common.yaml: "must be equal to the
+# frame_id used in the URDF file"). Como todavia no tenemos un URDF real del
+# chasis, ese offset por defecto (~1cm, ~3 grados) es arbitrario, centrado en
+# la camara, NO en el centro real del vehiculo (ej. eje de las ruedas traseras).
+#
+# Si este nodo publicara TAMBIEN "zed_left_camera_frame -> base_link" chocaria
+# con la que ya publica zed_wrapper (dos publishers para el mismo par de frames).
+# Por eso este archivo/nodo solo se usa para sensores ADICIONALES (hoy: ninguno
+# todavia: se suma el LiDAR en la Fase 1.3).
+#
+# TODO (Fase 1.2/3.4): cuando este el chasis real armado, redefinir base_link
+# como corresponde (idealmente con un URDF/xacro real via robot_state_publisher,
+# tarea 3.4 del plan) para que represente el centro real del vehiculo y no un
+# offset arbitrario de la camara.
+
+additional_sensors: {}
+# Ejemplo de como se va a completar en la Fase 1.3 (medido a mano sobre el
+# chasis real, en metros y radianes, convencion REP-103 x-adelante y-izq z-arriba):
+#
+# additional_sensors:
+#   lidar_frame:
+#     x: 0.25
+#     y: 0.0
+#     z: 0.45
+#     roll: 0.0
+#     pitch: 0.0
+#     yaw: 0.0

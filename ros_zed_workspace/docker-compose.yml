@@ -1,0 +1,36 @@
+version: '2.4'
+
+services:
+  ros_zed_navigation:
+    build: .
+    container_name: ros_zed_navigation
+    # NECESARIO PARA HABILITAR LA TARJETA DE VIDEO NVIDIA
+    runtime: nvidia
+    
+    # Habilitamos todos los privilegios para leer los puertos USB (Cámara ZED)
+    privileged: true
+    network_mode: host # Usamos la red host para que el puerto 8080 y 9090 funcionen perfecto
+    
+    volumes:
+      - /dev:/dev
+      - ./web_dashboard:/app/web_dashboard
+      - ./src:/root/catkin_ws/src
+
+      # FIX: Inyectar dependencias del JetPack 5 si llegaran a faltar
+      - /usr/lib/aarch64-linux-gnu/tegra/libnvbuf_utils.so.1.0.0:/usr/lib/aarch64-linux-gnu/tegra/libnvbuf_utils.so.1.0.0
+
+      # Acceso a la pantalla fisica conectada a la Jetson (para rviz/rqt, debug visual)
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /run/user/1000/gdm/Xauthority:/root/.Xauthority:ro
+
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - DISPLAY=:1
+      - XAUTHORITY=/root/.Xauthority
+
+    command: /bin/bash -c "echo -e 'source /opt/ros/noetic/setup.bash\nsource /root/catkin_ws/devel/setup.bash\ncd /root/catkin_ws && catkin_make\ncd /app/web_dashboard && python3 -m http.server 8080 &\nroscore &\nsleep 5\nroslaunch rosbridge_server rosbridge_websocket.launch &\nroslaunch zed_costmap_nav navigation.launch' > /run.sh && bash /run.sh"
+    
+    # Mantenemos el contenedor vivo
+    tty: true
+    stdin_open: true

@@ -1,0 +1,88 @@
+<launch>
+    <!-- Fase 2.3: activa la capa de terreno aprendido SOLO si ya se entreno
+         un modelo (traversability_train.py). Por defecto apagada -- si no
+         existe ~/vad_traversability_dataset/model.onnx, el nodo se apaga
+         solo y el resto de la navegacion sigue igual que siempre. -->
+    <arg name="use_learned_traversability" default="false" />
+
+    <!-- 1. Nodo de la Cámara ZED (Asumiendo que zed-ros-wrapper está instalado) -->
+    <include file="$(find zed_wrapper)/launch/zed.launch">
+    </include>
+
+    <!-- Object Detection NO esta soportado por esta camara ZED (la original,
+         sin IMU): el SDK tira "Object detection not started. OD is not
+         available for ZED camera model" apenas arranca, sin importar este
+         parametro. Queda en false para no spammear el log de errores. Poner
+         en true cuando se migre a la ZED 2i (Fase 1.1), que si lo soporta -
+         speed_moderator.py (Fase 0.3) ya esta escrito y listo para esa fecha,
+         solo probado con datos simulados por ahora (ver plan de navegacion). -->
+    <param name="/zed/zed_node/object_detection/od_enabled" value="false" />
+
+    <!-- Fase 0.4: a partir de ahora robot_localization (ekf_local, mas abajo)
+         es el que publica la TF odom -> base_link, no la ZED directamente.
+         Si dejamos las dos activas chocan (dos publishers de la misma TF). -->
+    <param name="/zed/zed_node/pos_tracking/publish_tf" value="false" />
+    <param name="/zed/zed_node/pos_tracking/publish_map_tf" value="false" />
+
+    <!-- 1.5 Transformadas estaticas de sensores adicionales (LiDAR en Fase 1.3).
+         No incluye la ZED, esa la maneja zed_wrapper por su cuenta. -->
+    <include file="$(find zed_costmap_nav)/launch/sensors_tf.launch" />
+
+    <!-- 1.6 EKF local (Fase 0.4): hoy solo fusiona la odometria de la ZED (un
+         "esqueleto" de una sola fuente), listo para sumar encoders/LiDAR mas
+         adelante sin rediseñar nada (ver comentarios en ekf_local.yaml). -->
+    <node pkg="robot_localization" type="ekf_localization_node" name="ekf_local" output="screen">
+        <rosparam file="$(find zed_costmap_nav)/config/ekf_local.yaml" command="load" />
+    </node>
+
+    <!-- 2. Nodo que convierte Nube de Puntos 3D a un Láser 2D (Filtro de piso) -->
+    <!-- Convierte los puntos altos de la ZED en obstáculos 2D -->
+    <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan">
+        <remap from="cloud_in" to="/zed/zed_node/point_cloud/cloud_registered" />
+        <remap from="scan" to="/scan" />
+        
+        <!-- ESTO ES LA MAGIA DEL PISO: Ignorar el piso mirando solo entre 20cm y 1.5m de altura -->
+        <param name="min_height" value="-0.20" />
+        <param name="max_height" value="2.0" />
+        <param name="range_min" value="0.10" />
+        <param name="range_max" value="4.0" />
+    </node>
+
+    <!-- 2.5 Workaround: arma el grid de obstaculos a mano desde /scan porque
+         costmap_2d::ObstacleLayer no marca nada en esta build (ver comentario
+         en costmap_common_params.yaml). move_base consume /scan_costmap via
+         costmap_2d::StaticLayer en vez de ObstacleLayer. -->
+    <node pkg="zed_costmap_nav" type="scan_to_costmap.py" name="scan_to_costmap" output="screen" />
+
+    <!-- 2.6 Fase 2.3: capa de terreno aprendido (preferencia, no obstaculo).
+         Solo corre si use_learned_traversability:=true Y ya existe un modelo
+         entrenado (ver comentario del arg mas arriba y traversability_train.py). -->
+    <node pkg="zed_costmap_nav" type="traversability_infer_node.py" name="traversability_infer_node"
+          output="screen" if="$(arg use_learned_traversability)" />
+
+    <!-- 3. Navigation Stack (move_base) - Genera el mapa de calor y esquiva -->
+    <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+        <remap from="odom" to="/odometry/filtered" />
+        <!-- No publica directo a /cmd_vel: pasa primero por speed_moderator -->
+        <remap from="cmd_vel" to="/cmd_vel_nav" />
+        <rosparam file="$(find zed_costmap_nav)/config/move_base_params.yaml" command="load" />
+        <rosparam file="$(find zed_costmap_nav)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
+        <rosparam file="$(find zed_costmap_nav)/config/costmap_common_params.yaml" command="load" ns="local_costmap" />
+        <rosparam file="$(find zed_costmap_nav)/config/local_costmap_params.yaml" command="load" />
+        <rosparam file="$(find zed_costmap_nav)/config/global_costmap_params.yaml" command="load" />
+    </node>
+
+    <!-- 3.5 Baja la velocidad cerca de personas/animales (Fase 0.3). Escucha
+         /cmd_vel_nav (salida de move_base) y republica en /cmd_vel ya escalado. -->
+    <node pkg="zed_costmap_nav" type="speed_moderator.py" name="speed_moderator" output="screen" />
+
+    <!-- 4. Nodo Controlador del Auto (Tu hardware) -->
+    <node pkg="zed_costmap_nav" type="auto_driver.py" name="auto_driver" output="screen" />
+
+    <!-- 5. Dashboard web: mapa de calor de profundidad + mapa 2D/ruta en vivo.
+         Antes se lanzaban a mano con docker exec cada vez - ahora arrancan
+         solos con el resto para no depender de acordarse de relanzarlos. -->
+    <node pkg="zed_costmap_nav" type="depth_to_heatmap.py" name="depth_to_heatmap" output="screen" />
+    <node pkg="zed_costmap_nav" type="render_plan.py" name="render_plan" output="screen" />
+
+</launch>

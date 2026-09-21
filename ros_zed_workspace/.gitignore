@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+web_dashboard/app.db
+web_dashboard/mail_outbox.log

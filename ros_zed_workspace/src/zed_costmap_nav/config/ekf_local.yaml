@@ -1,0 +1,46 @@
+# EKF LOCAL (frame "odom") - Fase 0.4: esqueleto con una sola fuente (odometria
+# de la ZED). El valor real de esto se ve cuando se suman mas fuentes: encoders
+# de rueda de los ODrive (Fase 1.7) y, si el Prototipo B tiene LiDAR, tambien
+# rf2o_laser_odometry (Fase 1.7). Ver "Decisiones clave" del plan de navegacion
+# para el diseño completo de 4 fuentes.
+#
+# IMPORTANTE: este nodo (no zed_wrapper) es el que tiene que publicar la TF
+# odom -> base_link de ahora en mas. Por eso en navigation.launch se apaga
+# pos_tracking/publish_tf de la ZED (sino chocan dos publishers de la misma
+# transformada - mismo tipo de problema que tuvimos con el costmap).
+
+frequency: 20
+sensor_timeout: 0.2
+two_d_mode: true  # vehiculo terrestre: ignora z/roll/pitch, evita que el drift de altura de la ZED meta ruido
+publish_tf: true
+
+odom_frame: odom
+base_link_frame: base_link
+world_frame: odom
+
+odom0: /zed/zed_node/odom
+odom0_config: [true,  true,  false,
+               false, false, true,
+               true,  true,  false,
+               false, false, true,
+               false, false, false]
+odom0_differential: false
+odom0_relative: false
+
+# FUTURO (Fase 1.7) - sumar odometria de rueda de los ODrive:
+# odom1: /wheel_odom
+# odom1_config: [false, false, false,
+#                false, false, false,
+#                true,  true,  false,
+#                false, false, true,
+#                false, false, false]
+# odom1_differential: false
+#
+# FUTURO (Fase 1.7, solo Prototipo B con LiDAR) - sumar rf2o_laser_odometry:
+# odom2: /rf2o_odom
+# odom2_config: [false, false, false,
+#                false, false, false,
+#                true,  true,  false,
+#                false, false, true,
+#                false, false, false]
+# odom2_differential: false

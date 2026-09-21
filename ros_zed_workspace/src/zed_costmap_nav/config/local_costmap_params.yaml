@@ -1,0 +1,27 @@
+local_costmap:
+  # Sin esto costmap_2d arranca en modo de compatibilidad "pre-Hydro" (deprecado,
+  # vimos el warning en los logs) que puede no inicializar bien las capas aunque
+  # el resto de los parametros esten cargados. Declaramos las capas a mano.
+  plugins:
+    - {name: scan_static_layer, type: "costmap_2d::StaticLayer"}
+    - {name: lane_keepout_layer, type: "costmap_prohibition_layer_namespace::CostmapProhibitionLayer"}
+    # Fase 2.3: preferencia de terreno aprendida, capa aditiva (nunca letal).
+    # Si traversability_infer_node.py no esta corriendo (todavia no hay
+    # modelo entrenado), esta capa simplemente no recibe nada y queda en
+    # "desconocido" -- no rompe la navegacion actual.
+    - {name: learned_traversability_layer, type: "costmap_2d::StaticLayer"}
+    - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
+  global_frame: odom
+  robot_base_frame: base_link
+  update_frequency: 5.0
+  publish_frequency: 5.0
+  # Subido de 0.5 a 1.5: el filtro interno que sincroniza el /scan con la
+  # transformada (tf2_ros::MessageFilter) usa el valor ESTATICO de este yaml,
+  # no lo que se cambie despues por dynamic_reconfigure. En este Jetson de 4
+  # nucleos, bajo carga, 0.5s no alcanzaba y se descartaban los scans en silencio.
+  transform_tolerance: 1.5
+  rolling_window: true
+  width: 6.0
+  height: 6.0
+  resolution: 0.05
+  always_send_full_costmap: true

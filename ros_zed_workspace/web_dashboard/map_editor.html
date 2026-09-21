@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VAD | Editor de Mapa de Operación</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body { overflow: auto; }
+        .dashboard { height: auto; min-height: 100vh; }
+        .main-content { flex-wrap: nowrap; }
+        #map { flex: 1; border-radius: 8px; min-height: 500px; }
+        .map-panel { flex: 3; }
+        .sidebar { flex: 1; min-width: 320px; max-width: 380px; }
+        .wp-list { list-style: none; max-height: 160px; overflow-y: auto; }
+        .wp-list li {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.85rem; color: var(--text-muted);
+        }
+        .wp-list li span.idx { color: var(--primary-neon); font-family: 'Orbitron', sans-serif; margin-right: 8px; }
+        .wp-list li button { background: none; border: none; color: var(--danger-neon); cursor: pointer; font-size: 1rem; }
+        textarea {
+            width: 100%; min-height: 100px; background: rgba(0,0,0,0.3); color: var(--text-main);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px; font-family: monospace;
+            font-size: 0.75rem; resize: vertical;
+        }
+        .btn {
+            background: rgba(45, 212, 191, 0.1); color: var(--primary-neon); border: 1px solid var(--primary-neon);
+            border-radius: 6px; padding: 6px 12px; font-family: 'Orbitron', sans-serif; font-size: 0.75rem;
+            cursor: pointer; margin: 4px 4px 4px 0;
+        }
+        .btn:hover { background: rgba(45, 212, 191, 0.25); }
+        .btn.danger { color: var(--danger-neon); border-color: var(--danger-neon); background: rgba(244, 63, 94, 0.1); }
+        .btn.active { background: var(--primary-neon); color: #02040a; }
+        .hint { font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 0.8rem; }
+        a.back-link { color: var(--primary-neon); text-decoration: none; font-size: 0.8rem; }
+        #modeLabel { font-size: 0.75rem; color: var(--primary-neon); margin-bottom: 0.5rem; font-family: 'Orbitron', sans-serif; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header class="header">
+            <div class="logo">VAD<span>MAP</span></div>
+            <div style="display:flex; align-items:center; gap:1rem;">
+                <span id="whoami" class="hint" style="margin:0;"></span>
+                <a class="back-link" href="index.html">&larr; Volver al dashboard</a>
+                <a class="back-link" href="#" id="logoutLink">Cerrar sesión</a>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <section class="panel map-panel">
+                <div class="panel-header">
+                    <h2>MAPA DE OPERACIÓN (OpenStreetMap)</h2>
+                    <div class="badge">EDITOR</div>
+                </div>
+                <div id="modeLabel">MODO: agregar waypoints (click en el mapa)</div>
+                <div id="map"></div>
+            </section>
+
+            <aside class="sidebar">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>MODO</h2>
+                    </div>
+                    <p class="hint">El camino final NO depende del orden en que cargás los puntos: lo calcula el router en la Jetson buscando el camino más corto sobre las conexiones que dibujes acá (Dijkstra bidireccional, auto ↔ destino).</p>
+                    <button class="btn" id="btnModeAdd">➕ Agregar waypoint</button>
+                    <button class="btn" id="btnModeConnect">🔗 Conectar dos waypoints</button>
+                    <button class="btn" id="btnModeOrigen">🚗 Marcar origen</button>
+                    <button class="btn" id="btnModeDestino">🏁 Marcar destino</button>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>RUTA</h2>
+                    </div>
+                    <p class="hint">Calcula el camino más corto entre el origen y el destino marcados, usando el mismo <code>waypoint_router.py</code> que corre en la Jetson (Dijkstra bidireccional).</p>
+                    <button class="btn" id="btnCalcularRuta">🧭 Calcular ruta</button>
+                    <div id="rutaInfo" class="hint" style="margin-top:0.5rem;"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>MAPAS GUARDADOS</h2>
+                    </div>
+                    <p class="hint">Guardado en el servidor local, ligado a tu usuario (RF-01: acceso por login, guardar/eliminar mapas).</p>
+                    <div>
+                        <input id="mapName" placeholder="nombre del mapa" style="width:100%; padding:6px 8px; background:rgba(0,0,0,0.3); color:var(--text-main); border:1px solid rgba(255,255,255,0.1); border-radius:6px; margin-bottom:6px;">
+                        <button class="btn" id="btnSaveMap">💾 Guardar</button>
+                    </div>
+                    <ul class="wp-list" id="mapList"></ul>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>WAYPOINTS</h2>
+                    </div>
+                    <ul class="wp-list" id="nodeList"></ul>
+                    <div class="panel-header" style="margin-top:0.8rem;">
+                        <h2>CONEXIONES</h2>
+                    </div>
+                    <ul class="wp-list" id="edgeList"></ul>
+                    <div>
+                        <button class="btn danger" id="btnClear">Vaciar todo</button>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>EXPORTAR / IMPORTAR</h2>
+                    </div>
+                    <p class="hint">Grafo (nodos + conexiones + destino) en JSON, para pasarle al router de la Jetson.</p>
+                    <textarea id="jsonBox" placeholder="{}"></textarea>
+                    <div>
+                        <button class="btn" id="btnExport">Actualizar JSON</button>
+                        <button class="btn" id="btnCopy">Copiar</button>
+                        <button class="btn" id="btnImport">Cargar desde JSON</button>
+                    </div>
+                </section>
+            </aside>
+        </main>
+    </div>
+
+    <script>
+        // RF-01 (HU-01): esta pantalla exige login antes de mostrar nada.
+        // Si no hay sesión válida, redirige a login.html.
+        let currentUser = null;
+        async function requireAuth() {
+            const res = await fetch('/api/me');
+            const data = await res.json();
+            if (!data.authenticated) {
+                window.location.href = 'login.html';
+                return false;
+            }
+            currentUser = data;
+            document.getElementById('whoami').textContent =
+                `${data.username}${data.is_admin ? ' (admin)' : ''}`;
+            if (data.is_admin) {
+                const a = document.createElement('a');
+                a.href = 'admin.html'; a.className = 'back-link'; a.textContent = 'Usuarios pendientes';
+                document.getElementById('whoami').after(a);
+            }
+            return true;
+        }
+        document.getElementById('logoutLink').onclick = async (e) => {
+            e.preventDefault();
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = 'login.html';
+        };
+
+        const STORAGE_KEY = 'vad_graph';
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+        let nodes = (saved && saved.nodes) || [];       // [{id, lat, lon}]
+        let edges = (saved && saved.edges) || [];        // [[idA, idB]]
+        let destino = (saved && saved.destino) || null;  // id o null
+        let origen = (saved && saved.origen) || null;    // id o null
+        let nextId = nodes.reduce((m, n) => Math.max(m, n.id + 1), 0);
+        let lastRoute = null; // {path_ids, path_latlon, distance_m} calculado por el router
+
+        let mode = 'add'; // 'add' | 'connect' | 'origen' | 'destino'
+        let connectFirst = null; // id del primer nodo elegido en modo conectar
+
+        const map = L.map('map');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        map.setView([0, 0], 2);
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                pos => map.setView([pos.coords.latitude, pos.coords.longitude], 17),
+                () => {}
+            );
+        }
+
+        function setMode(m) {
+            mode = m;
+            connectFirst = null;
+            document.getElementById('btnModeAdd').classList.toggle('active', m === 'add');
+            document.getElementById('btnModeConnect').classList.toggle('active', m === 'connect');
+            document.getElementById('btnModeOrigen').classList.toggle('active', m === 'origen');
+            document.getElementById('btnModeDestino').classList.toggle('active', m === 'destino');
+            const labels = {
+                add: 'MODO: agregar waypoints (click en el mapa)',
+                connect: 'MODO: conectar (click en 2 waypoints)',
+                origen: 'MODO: marcar origen (click en un waypoint)',
+                destino: 'MODO: marcar destino (click en un waypoint)'
+            };
+            document.getElementById('modeLabel').textContent = labels[m];
+        }
+
+        function nodeById(id) { return nodes.find(n => n.id === id); }
+
+        let markerLayer = L.layerGroup().addTo(map);
+        let edgeLayer = L.layerGroup().addTo(map);
+
+        function onMarkerClick(id) {
+            if (mode === 'connect') {
+                if (connectFirst === null) {
+                    connectFirst = id;
+                } else if (connectFirst !== id) {
+                    const exists = edges.some(([a, b]) =>
+                        (a === connectFirst && b === id) || (a === id && b === connectFirst));
+                    if (!exists) edges.push([connectFirst, id]);
+                    connectFirst = null;
+                    save();
+                    redraw();
+                }
+            } else if (mode === 'origen') {
+                origen = id;
+                lastRoute = null;
+                save();
+                redraw();
+            } else if (mode === 'destino') {
+                destino = id;
+                lastRoute = null;
+                save();
+                redraw();
+            }
+        }
+
+        function redraw() {
+            markerLayer.clearLayers();
+            edgeLayer.clearLayers();
+
+            edges.forEach(([a, b]) => {
+                const na = nodeById(a), nb = nodeById(b);
+                if (!na || !nb) return;
+                L.polyline([[na.lat, na.lon], [nb.lat, nb.lon]], { color: '#818cf8', weight: 3 }).addTo(edgeLayer);
+            });
+
+            if (lastRoute && lastRoute.path_latlon && lastRoute.path_latlon.length > 1) {
+                L.polyline(lastRoute.path_latlon, { color: '#fbbf24', weight: 5, opacity: 0.9 }).addTo(edgeLayer);
+            }
+
+            nodes.forEach(n => {
+                const isDestino = n.id === destino;
+                const isOrigen = n.id === origen;
+                const color = isDestino ? '#f43f5e' : (isOrigen ? '#22c55e' : '#2dd4bf');
+                const emoji = isDestino ? ' 🏁' : (isOrigen ? ' 🚗' : '');
+                const marker = L.marker([n.lat, n.lon], {
+                    icon: L.divIcon({
+                        className: '',
+                        html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:2px solid #02040a;box-shadow:0 0 8px ${color};"></div>`,
+                        iconSize: [16, 16], iconAnchor: [8, 8]
+                    })
+                }).addTo(markerLayer)
+                  .bindTooltip(`${n.id}${emoji}`, { permanent: true, direction: 'top' });
+                marker.on('click', () => onMarkerClick(n.id));
+                markerLayer.addLayer(marker);
+            });
+
+            const nodeList = document.getElementById('nodeList');
+            nodeList.innerHTML = '';
+            nodes.forEach(n => {
+                const tag = n.id === destino ? ' 🏁' : (n.id === origen ? ' 🚗' : '');
+                const li = document.createElement('li');
+                li.innerHTML = `<span><span class="idx">#${n.id}</span>${n.lat.toFixed(6)}, ${n.lon.toFixed(6)}${tag}</span>`;
+                const btn = document.createElement('button');
+                btn.textContent = '✕';
+                btn.onclick = () => {
+                    nodes = nodes.filter(x => x.id !== n.id);
+                    edges = edges.filter(([a, b]) => a !== n.id && b !== n.id);
+                    if (destino === n.id) destino = null;
+                    if (origen === n.id) origen = null;
+                    lastRoute = null;
+                    save(); redraw();
+                };
+                li.appendChild(btn);
+                nodeList.appendChild(li);
+            });
+
+            const edgeList = document.getElementById('edgeList');
+            edgeList.innerHTML = '';
+            edges.forEach(([a, b], i) => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>#${a} &harr; #${b}</span>`;
+                const btn = document.createElement('button');
+                btn.textContent = '✕';
+                btn.onclick = () => { edges.splice(i, 1); lastRoute = null; save(); redraw(); };
+                li.appendChild(btn);
+                edgeList.appendChild(li);
+            });
+
+            document.getElementById('jsonBox').value = JSON.stringify({ nodes, edges, destino, origen }, null, 2);
+        }
+
+        function save() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges, destino, origen }));
+        }
+
+        async function calcularRuta() {
+            const info = document.getElementById('rutaInfo');
+            if (origen === null || destino === null) {
+                info.textContent = 'Marcá un origen (🚗) y un destino (🏁) primero.';
+                return;
+            }
+            info.textContent = 'Calculando...';
+            const res = await fetch('/api/route', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ graph: { nodes, edges, destino }, origin: origen, destino })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                info.textContent = 'Error: ' + (data.error || 'no se pudo calcular la ruta');
+                return;
+            }
+            if (data.route === null) {
+                lastRoute = null;
+                info.textContent = data.message;
+            } else {
+                lastRoute = data.route;
+                info.textContent = `Camino: ${data.route.path_ids.join(' → ')} · ${data.route.distance_m.toFixed(1)} m`;
+            }
+            redraw();
+        }
+        document.getElementById('btnCalcularRuta').onclick = calcularRuta;
+
+        async function refreshMapList() {
+            const res = await fetch('/api/maps');
+            if (!res.ok) return;
+            const data = await res.json();
+            const list = document.getElementById('mapList');
+            list.innerHTML = '';
+            data.maps.forEach(m => {
+                const li = document.createElement('li');
+                const span = document.createElement('span');
+                span.textContent = m.name;
+                span.style.cursor = 'pointer';
+                span.onclick = async () => {
+                    const r = await fetch(`/api/maps/${m.id}`);
+                    const d = await r.json();
+                    nodes = d.graph.nodes || [];
+                    edges = d.graph.edges || [];
+                    destino = d.graph.destino ?? null;
+                    origen = d.graph.origen ?? null;
+                    lastRoute = null;
+                    nextId = nodes.reduce((mx, n) => Math.max(mx, n.id + 1), 0);
+                    save(); redraw();
+                };
+                const btn = document.createElement('button');
+                btn.textContent = '✕';
+                btn.onclick = async () => {
+                    await fetch(`/api/maps/${m.id}`, { method: 'DELETE' });
+                    refreshMapList();
+                };
+                li.appendChild(span);
+                li.appendChild(btn);
+                list.appendChild(li);
+            });
+        }
+
+        document.getElementById('btnSaveMap').onclick = async () => {
+            const name = document.getElementById('mapName').value.trim();
+            if (!name) { alert('Ponele un nombre al mapa.'); return; }
+            await fetch('/api/maps', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, graph: { nodes, edges, destino, origen } })
+            });
+            document.getElementById('mapName').value = '';
+            refreshMapList();
+        };
+
+        map.on('click', e => {
+            if (mode !== 'add') return;
+            nodes.push({ id: nextId++, lat: e.latlng.lat, lon: e.latlng.lng });
+            save();
+            redraw();
+        });
+
+        document.getElementById('btnModeAdd').onclick = () => setMode('add');
+        document.getElementById('btnModeConnect').onclick = () => setMode('connect');
+        document.getElementById('btnModeOrigen').onclick = () => setMode('origen');
+        document.getElementById('btnModeDestino').onclick = () => setMode('destino');
+
+        document.getElementById('btnClear').onclick = () => {
+            nodes = []; edges = []; destino = null; origen = null; lastRoute = null; nextId = 0;
+            save();
+            redraw();
+        };
+
+        document.getElementById('btnExport').onclick = redraw;
+
+        document.getElementById('btnCopy').onclick = () => {
+            const box = document.getElementById('jsonBox');
+            box.select();
+            document.execCommand('copy');
+        };
+
+        document.getElementById('btnImport').onclick = () => {
+            try {
+                const parsed = JSON.parse(document.getElementById('jsonBox').value);
+                if (!parsed.nodes || !Array.isArray(parsed.nodes)) throw new Error('falta "nodes"');
+                nodes = parsed.nodes.map(n => ({ id: Number(n.id), lat: Number(n.lat), lon: Number(n.lon) }));
+                edges = (parsed.edges || []).map(([a, b]) => [Number(a), Number(b)]);
+                destino = parsed.destino === undefined || parsed.destino === null ? null : Number(parsed.destino);
+                origen = parsed.origen === undefined || parsed.origen === null ? null : Number(parsed.origen);
+                nextId = nodes.reduce((m, n) => Math.max(m, n.id + 1), 0);
+                lastRoute = null;
+                save();
+                redraw();
+            } catch (e) {
+                alert('JSON inválido: ' + e.message);
+            }
+        };
+
+        (async () => {
+            const ok = await requireAuth();
+            if (!ok) return;
+            setMode('add');
+            redraw();
+            refreshMapList();
+        })();
+    </script>
+</body>
+</html>

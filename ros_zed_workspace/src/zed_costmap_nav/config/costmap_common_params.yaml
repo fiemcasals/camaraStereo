@@ -1,0 +1,56 @@
+# Configuración del "Mapa de Calor" (Costmap) para la Jetson
+#
+# IMPORTANTE: desde que declaramos `plugins` explícitamente, cada capa lee sus
+# propios parámetros de SU PROPIO namespace anidado (<costmap>/<nombre_de_capa>/...).
+#
+# WORKAROUND ACTIVO: costmap_2d::ObstacleLayer tiene un bug no resuelto en esta
+# build (nunca marca ni una celda, verificado exhaustivamente con rviz,
+# rqt_reconfigure y chequeos matemáticos directos de TF). En su lugar usamos
+# costmap_2d::StaticLayer alimentada por nuestro propio nodo `scan_to_costmap.py`,
+# que arma el grid a mano desde /scan y lo republica en /scan_costmap.
+
+# Tamaño del robot: es a nivel del costmap entero (no de una capa), va sin anidar.
+# Aproximación desde la base móvil comprada (70cm largo x 50cm ancho) centrada en base_link.
+# PROVISORIO: falta re-medir cuando el chasis esté armado y definir bien dónde cae base_link
+# respecto al eje de las ruedas traseras (Fase 1.2 del plan de navegación).
+footprint: [[-0.35, -0.25], [-0.35, 0.25], [0.35, 0.25], [0.35, -0.25]]
+
+scan_static_layer:
+  map_topic: /scan_costmap
+  subscribe_to_updates: false
+  track_unknown_space: false
+  use_maximum: false
+  trinary_costmap: true
+  first_map_only: false
+
+learned_traversability_layer:
+  # Fase 2.3: terreno transitable aprendido de forma auto-supervisada (ver
+  # traversability_label.py, traversability_data_collector.py,
+  # traversability_train.py, traversability_infer_node.py). El costo nunca
+  # llega a letal (100): es una PREFERENCIA aditiva, no una prohibicion, para
+  # no bloquear la navegacion si el modelo se equivoca en algo.
+  map_topic: /learned_traversability_costmap
+  subscribe_to_updates: false
+  track_unknown_space: true
+  use_maximum: false
+  trinary_costmap: false
+  first_map_only: false
+
+lane_keepout_layer:
+  # Fase 0.8: prototipo con un poligono de prueba (no hay calle real todavia).
+  # Formato: lista de poligonos, cada uno una lista de puntos [x,y] en el
+  # frame global del costmap (odom por ahora). Un poligono de 1x1m a 1-2m del
+  # origen, dentro de la ventana visible del costmap local (6x6m).
+  # PROVISORIO: en Fase 2.4 este poligono va a representar el carril
+  # contrario real, dibujado en map_editor.html sobre una calle de verdad.
+  enabled: true
+  fill_polygons: true
+  prohibition_areas:
+    - [[1.0, 1.0], [1.0, 2.0], [2.0, 2.0], [2.0, 1.0]]
+
+inflation_layer:
+  # Margen de seguridad alrededor de cada obstáculo. Subido de 0.1 a 0.3m porque
+  # con el footprint real (0.7x0.5m) 10cm era insuficiente para planificar con margen.
+  # PROVISORIO: re-ajustar en pruebas de campo (Fase 2).
+  inflation_radius: 0.3
+  cost_scaling_factor: 3.0
