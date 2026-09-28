@@ -5,19 +5,21 @@
 #   1. solo profundidad (deteccion de objetos apagada por servicio)
 #   2. profundidad + deteccion de objetos
 #   3. stack completo (lo anterior + un goal de move_base activo, si se pasa --con-goal)
-#   (model 1 = MULTI_CLASS_BOX_MEDIUM, el mismo que navigation.launch)
+#   (la deteccion se prende/apaga con el servicio enable_object_detection del
+#   wrapper; usa el modelo de navigation.launch, MULTI_CLASS_BOX_MEDIUM)
 # y deja un CSV + un resumen en ~/medicion_capacidad_<fecha>/.
 #
-# Uso: ./medir_capacidad.sh [segundos_por_configuracion]   (default 300 = 5 min)
+# Uso: sudo ./medir_capacidad.sh [segundos_por_configuracion] [--con-goal]   (default 300 = 5 min)
 set -u
 DUR=${1:-300}
 C=ros_zed_navigation
-OUT=~/medicion_capacidad_$(date +%Y%m%d_%H%M)
+# Se corre con sudo (docker exec); los resultados quedan en el home del usuario real.
+OUT=$(eval echo ~${SUDO_USER:-$USER})/medicion_capacidad_$(date +%Y%m%d_%H%M)
 mkdir -p "$OUT"
 ROS="source /opt/ros/noetic/setup.bash; source /root/catkin_ws/devel/setup.bash"
 TOPICS="/zed/zed_node/depth/depth_registered /zed/zed_node/obj_det/objects /zed/zed_node/imu/data /scan /move_base/local_costmap/costmap /odometry/filtered"
 
-dexec() { sudo docker exec "$C" bash -c "$ROS; $1"; }
+dexec() { docker exec "$C" bash -c "$ROS; $1"; }
 
 medir() {  # $1 = nombre de la configuracion
     local name=$1
@@ -33,7 +35,8 @@ medir() {  # $1 = nombre de la configuracion
 }
 
 resumir() {  # $1 = nombre -> una fila del CSV
-    local name=$1 row="$name,$(sudo nvpmodel -q 2>/dev/null | head -1 | awk -F': ' '{print $2}')"
+    local name=$1
+    local row="$name,$(nvpmodel -q 2>/dev/null | head -1 | awk -F': ' '{print $2}')"
     for t in $TOPICS; do
         hz=$(grep "average rate" "$OUT/hz_${name}_$(echo $t | tr / _).log" | tail -20 | awk '{s+=$3; n++} END {if (n) printf "%.1f", s/n; else print "0"}')
         row="$row,$hz"
@@ -52,10 +55,11 @@ resumir() {  # $1 = nombre -> una fila del CSV
 
 echo "configuracion,modo_energia,$(echo $TOPICS | tr ' ' ','),cpu_prom_%,gpu_prom_%,ram_prom_MB,temp_gpu_max_C" > "$OUT/resumen.csv"
 
-dexec "rosservice call /zed/zed_node/stop_object_detection" > /dev/null
+dexec "rosservice call /zed/zed_node/enable_object_detection false" > /dev/null
 medir solo_profundidad; resumir solo_profundidad
 
-dexec "rosservice call /zed/zed_node/start_object_detection '{model: 1, confidence: 50.0, max_range: 15.0, tracking: true, sk_body_fitting: false, mc_people: true, mc_vehicles: true, mc_bag: true, mc_animal: true, mc_electronics: false, mc_fruit_vegetable: false, mc_sport: false}'" > /dev/null
+dexec "rosservice call /zed/zed_node/enable_object_detection true" > /dev/null
+sleep 10  # el modelo ya optimizado tarda unos segundos en volver a cargar
 medir profundidad_y_deteccion; resumir profundidad_y_deteccion
 
 if [ "${2:-}" = "--con-goal" ]; then
