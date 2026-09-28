@@ -84,6 +84,15 @@
          /cmd_vel_nav (salida de move_base) y republica en /cmd_vel ya escalado. -->
     <node pkg="zed_costmap_nav" type="speed_moderator.py" name="speed_moderator" output="screen" />
 
+    <!-- 3.6 Modo seguimiento de personas (RF-10). No publica nada hasta que el
+         operador elige una persona en seguir.html; ahi cancela el goal de
+         move_base y manda su propia velocidad por /cmd_vel_nav, que igual
+         pasa por speed_moderator. -->
+    <node pkg="zed_costmap_nav" type="person_follower.py" name="person_follower" output="screen">
+        <param name="follow_distance" value="1.5" />
+        <param name="lost_timeout" value="2.0" />
+    </node>
+
     <!-- 4. Nodo Controlador del Auto (Tu hardware) -->
     <node pkg="zed_costmap_nav" type="auto_driver.py" name="auto_driver" output="screen" />
 
