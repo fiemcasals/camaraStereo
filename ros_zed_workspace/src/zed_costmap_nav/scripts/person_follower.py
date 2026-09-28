@@ -16,6 +16,8 @@
 La logica (a quien seguir, que velocidad mandar, cuando declararlo perdido)
 vive en follow_logic.py, sin ROS, y se prueba con test_follow_logic.py."""
 import json
+import os
+import sys
 
 import rospy
 from actionlib_msgs.msg import GoalID
@@ -23,7 +25,10 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import Int32, String
 from zed_interfaces.msg import ObjectsStamped
 
-import follow_logic as fl
+# rosrun/roslaunch ejecuta este archivo a traves del wrapper de devel/lib, asi
+# que la carpeta scripts/ no queda en sys.path por si sola.
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import follow_logic as fl  # noqa: E402
 
 # Resolucion de captura de la ZED segun general/grab_resolution del wrapper.
 # Los recuadros 2D del SDK vienen en pixeles de esa resolucion.
