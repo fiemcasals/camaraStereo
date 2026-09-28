@@ -27,6 +27,20 @@ odom0_config: [true,  true,  false,
 odom0_differential: false
 odom0_relative: false
 
+# RF-01 (Fase 1.1): IMU integrada de la ZED 2i. Solo la velocidad de giro
+# (vyaw): la odometria de la ZED ya fusiona la IMU por dentro (imu_fusion en
+# common.yaml del wrapper), asi que sumar orientacion o aceleracion aca seria
+# contar dos veces lo mismo. El giroscopio (hasta 200 Hz) suaviza los giros
+# entre frames de la camara (15 Hz).
+imu0: /zed/zed_node/imu/data
+imu0_config: [false, false, false,
+              false, false, false,
+              false, false, false,
+              false, false, true,
+              false, false, false]
+imu0_differential: false
+imu0_remove_gravitational_acceleration: true
+
 # FUTURO (Fase 1.7) - sumar odometria de rueda de los ODrive:
 # odom1: /wheel_odom
 # odom1_config: [false, false, false,

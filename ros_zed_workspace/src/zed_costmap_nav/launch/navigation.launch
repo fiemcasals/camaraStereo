@@ -5,18 +5,24 @@
          solo y el resto de la navegacion sigue igual que siempre. -->
     <arg name="use_learned_traversability" default="false" />
 
-    <!-- 1. Nodo de la Cámara ZED (Asumiendo que zed-ros-wrapper está instalado) -->
-    <include file="$(find zed_wrapper)/launch/zed.launch">
+    <!-- 1. Nodo de la Cámara ZED 2i (RF-01, Fase 1.1). camera_name:=zed para
+         conservar los topicos /zed/zed_node/... que ya usan todos los nodos
+         (speed_moderator, depth_to_heatmap, pointcloud_to_laserscan, EKF). -->
+    <include file="$(find zed_wrapper)/launch/zed2i.launch">
+        <arg name="camera_name" value="zed" />
     </include>
 
-    <!-- Object Detection NO esta soportado por esta camara ZED (la original,
-         sin IMU): el SDK tira "Object detection not started. OD is not
-         available for ZED camera model" apenas arranca, sin importar este
-         parametro. Queda en false para no spammear el log de errores. Poner
-         en true cuando se migre a la ZED 2i (Fase 1.1), que si lo soporta -
-         speed_moderator.py (Fase 0.3) ya esta escrito y listo para esa fecha,
-         solo probado con datos simulados por ahora (ver plan de navegacion). -->
-    <param name="/zed/zed_node/object_detection/od_enabled" value="false" />
+    <!-- Object Detection: la ZED 2i si lo soporta (la ZED original no). Con
+         tracking cada persona conserva su label_id mientras esta a la vista:
+         lo usan speed_moderator.py (frenar cerca de personas/animales) y el
+         modo seguimiento (RF-10). Modelo MEDIUM y no ACCURATE: estamos en una
+         Xavier NX, no en la Orin NX (ver RNF-05, medicion de capacidad). -->
+    <param name="/zed/zed_node/object_detection/od_enabled" value="true" />
+    <param name="/zed/zed_node/object_detection/model" value="MULTI_CLASS_BOX_MEDIUM" />
+    <param name="/zed/zed_node/object_detection/object_tracking_enabled" value="true" />
+    <param name="/zed/zed_node/object_detection/mc_electronics" value="false" />
+    <param name="/zed/zed_node/object_detection/mc_fruit_vegetable" value="false" />
+    <param name="/zed/zed_node/object_detection/mc_sport" value="false" />
 
     <!-- Fase 0.4: a partir de ahora robot_localization (ekf_local, mas abajo)
          es el que publica la TF odom -> base_link, no la ZED directamente.

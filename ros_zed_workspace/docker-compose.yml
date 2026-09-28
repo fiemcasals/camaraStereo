@@ -23,6 +23,13 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /run/user/1000/gdm/Xauthority:/root/.Xauthority:ro
 
+      # RF-01: los modelos de IA de la ZED (profundidad neural, deteccion de
+      # objetos) se optimizan para la GPU la primera vez que se usan (~30 min
+      # en la Xavier NX). Sin estos volumenes se pierden cada vez que se
+      # recrea el contenedor. Lo mismo con la calibracion descargada.
+      - zed_resources:/usr/local/zed/resources
+      - zed_settings:/usr/local/zed/settings
+
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
@@ -34,3 +41,7 @@ services:
     # Mantenemos el contenedor vivo
     tty: true
     stdin_open: true
+
+volumes:
+  zed_resources:
+  zed_settings:
