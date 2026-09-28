@@ -1,7 +1,7 @@
 <launch>
     <!-- Fase 2.3, paso 1 de 2: recoleccion de datos. Corre la camara ZED y el
          nodo que va guardando frames + etiquetas mientras SE MANEJA MANUAL
-         (no arranca move_base ni la navegacion autonoma -- para eso ya esta
+         (no arranca move_base ni la navegacion autonoma - para eso ya esta
          navigation.launch). No entrena nada: solo junta el dataset.
 
          Uso:
@@ -10,10 +10,10 @@
            que el sistema aprenda)
 
          Paso 2 (aparte, offline, en una terminal, NO durante el manejo):
-           python3 traversability_train.py --dataset ~/vad_traversability_dataset
+           python3 traversability_train.py   (usa ~/vad_traversability_dataset por defecto)
 
          IMPORTANTE: esto NO incluye ningun nodo de teleoperacion (joystick/
-         teclado) -- eso es RO-08/RF-02 "Implementacion de sistema de
+         teclado) - eso es RO-08/RF-02 "Implementacion de sistema de
          conduccion basico" (todavia pendiente). El colector solo escucha
          /cmd_vel para saber si el auto se esta moviendo; hace falta correr
          aparte lo que sea que estes usando para manejarlo a mano y que

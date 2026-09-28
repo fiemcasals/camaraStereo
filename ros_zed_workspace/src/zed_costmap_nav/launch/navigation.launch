@@ -1,6 +1,6 @@
 <launch>
     <!-- Fase 2.3: activa la capa de terreno aprendido SOLO si ya se entreno
-         un modelo (traversability_train.py). Por defecto apagada -- si no
+         un modelo (traversability_train.py). Por defecto apagada - si no
          existe ~/vad_traversability_dataset/model.onnx, el nodo se apaga
          solo y el resto de la navegacion sigue igual que siempre. -->
     <arg name="use_learned_traversability" default="false" />
