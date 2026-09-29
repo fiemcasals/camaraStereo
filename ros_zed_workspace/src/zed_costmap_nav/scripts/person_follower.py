@@ -16,6 +16,7 @@
 La logica (a quien seguir, que velocidad mandar, cuando declararlo perdido)
 vive en follow_logic.py, sin ROS, y se prueba con test_follow_logic.py."""
 import json
+import math
 import os
 import sys
 
@@ -48,13 +49,12 @@ def objects_cb(msg, ctx):
         if not fl.is_person(obj.label) or not obj.tracking_available:
             continue
         corners = [(c.kp[0], c.kp[1]) for c in obj.bounding_box_2d.corners]
-        persons.append({
-            'id': int(obj.label_id),
-            'x': float(obj.position[0]),
-            'y': float(obj.position[1]),
-            'dist': round(float((obj.position[0] ** 2 + obj.position[1] ** 2) ** 0.5), 2),
-            'bbox': [round(v, 4) for v in fl.normalize_bbox(corners, *ctx['img_size'])],
-        })
+        p = {'id': int(obj.label_id), 'x': float(obj.position[0]), 'y': float(obj.position[1]),
+             'bbox': [round(v, 4) for v in fl.normalize_bbox(corners, *ctx['img_size'])]}
+        # dist None (null en el JSON) si la ZED no dio posicion valida: NaN no es JSON
+        # valido y el JSON.parse de seguir.js falla con el mensaje entero.
+        p['dist'] = round(math.hypot(p['x'], p['y']), 2) if fl.has_position(p) else None
+        persons.append(p)
     state['persons'] = persons
     ctx['det_pub'].publish(String(data=json.dumps({
         'stamp': msg.header.stamp.to_sec(),

@@ -68,6 +68,12 @@ class TestFollowState(unittest.TestCase):
         self.assertEqual(status, fl.FollowState.FOLLOWING)
         self.assertGreater(lin, 0)
 
+    def test_sin_distancia_valida_frena_sin_perderlo(self):
+        st = fl.FollowState(lost_timeout=2.0)
+        st.set_target(0, now=0.0)
+        nan = float('nan')
+        self.assertEqual(st.update(self.persons((0, nan, nan)), now=3.0), (fl.FollowState.FOLLOWING, (0.0, 0.0)))
+
     def test_dejar_de_seguir(self):
         st = fl.FollowState()
         st.set_target(7, now=0.0)

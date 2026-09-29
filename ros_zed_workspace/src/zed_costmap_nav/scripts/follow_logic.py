@@ -28,6 +28,13 @@ def is_person(label):
     return 'person' in (label or '').lower()
 
 
+def has_position(person):
+    """La ZED manda NaN en la posicion cuando la persona esta mas cerca que la
+    profundidad minima (0,3 m) o la profundidad no es valida."""
+    x, y = person.get('x'), person.get('y')
+    return x is not None and y is not None and math.isfinite(x) and math.isfinite(y)
+
+
 def normalize_bbox(corners, img_w, img_h):
     """corners: 4 puntos (x, y) en pixeles de la imagen de captura, en el
     orden del SDK (arriba-izq, arriba-der, abajo-der, abajo-izq). Devuelve
@@ -97,6 +104,10 @@ class FollowState:
         target = find_target(persons, self.target_id)
         if target is not None:
             self.last_seen = now
+            if not has_position(target):
+                # Se lo ve pero sin distancia valida (mas cerca que el minimo de
+                # la camara, 0,3 m): frenar, sin declararlo perdido.
+                return self.FOLLOWING, (0.0, 0.0)
             return self.FOLLOWING, follow_cmd(target['x'], target['y'], follow_dist)
 
         if now - self.last_seen > self.lost_timeout:

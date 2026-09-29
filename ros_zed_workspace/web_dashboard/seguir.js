@@ -51,10 +51,13 @@ canvas.addEventListener('click', ev => {
     const v = (ev.clientY - r.top) / r.height;
     const hits = persons.filter(p => u >= p.bbox[0] && u <= p.bbox[2] && v >= p.bbox[1] && v <= p.bbox[3]);
     if (hits.length) {
-        hits.sort((a, b) => a.dist - b.dist);
+        hits.sort((a, b) => (a.dist ?? 0) - (b.dist ?? 0));  // sin distancia = muy cerca
         follow(hits[0].id);
     }
 });
+
+// dist null = la ZED no dio profundidad valida (mas cerca de 0,3 m).
+const fmtDist = d => (d === null || d === undefined) ? '< 0,3 m' : `${d.toFixed(1)} m`;
 
 function renderList() {
     listEl.innerHTML = '';
@@ -65,7 +68,7 @@ function renderList() {
     for (const p of persons) {
         const li = document.createElement('li');
         if (p.id === targetId) li.className = 'target';
-        li.innerHTML = `<span>Persona ${p.id} · ${p.dist.toFixed(1)} m</span>`;
+        li.innerHTML = `<span>Persona ${p.id} · ${fmtDist(p.dist)}</span>`;
         const btn = document.createElement('button');
         btn.className = 'follow-btn';
         btn.innerText = p.id === targetId ? 'SIGUIENDO' : 'SEGUIR';
@@ -93,7 +96,7 @@ function draw() {
         ctx.strokeStyle = isTarget ? '#facc15' : '#2dd4bf';
         ctx.lineWidth = isTarget ? 6 : 3;
         ctx.strokeRect(x0 * W, y0 * H, (x1 - x0) * W, (y1 - y0) * H);
-        const label = `#${p.id}  ${p.dist.toFixed(1)} m${isTarget ? '  ◀ OBJETIVO' : ''}`;
+        const label = `#${p.id}  ${fmtDist(p.dist)}${isTarget ? '  ◀ OBJETIVO' : ''}`;
         ctx.font = 'bold 26px Inter';
         ctx.textAlign = 'left';
         const tw = ctx.measureText(label).width;
