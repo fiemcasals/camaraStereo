@@ -74,6 +74,35 @@ class TestFollowState(unittest.TestCase):
         nan = float('nan')
         self.assertEqual(st.update(self.persons((0, nan, nan)), now=3.0), (fl.FollowState.FOLLOWING, (0.0, 0.0)))
 
+    def test_reengancha_id_nuevo_en_el_mismo_lugar(self):
+        st = fl.FollowState()
+        st.set_target(7, now=0.0)
+        st.update(self.persons((7, 2.0, 0.0), (3, 2.5, 1.5)), now=0.1)
+        status, _ = st.update(self.persons((9, 2.1, 0.1), (3, 2.5, 1.5)), now=0.5)  # la ZED le dio ID 9
+        self.assertEqual(status, fl.FollowState.FOLLOWING)
+        self.assertEqual(st.target_id, 9)
+
+    def test_no_salta_a_una_persona_ya_conocida_aunque_este_cerca(self):
+        st = fl.FollowState()
+        st.set_target(7, now=0.0)
+        st.update(self.persons((7, 2.0, 0.0), (3, 2.6, 0.0)), now=0.1)
+        st.update(self.persons((3, 2.1, 0.0)), now=0.5)  # el 7 se tapo, el 3 paso por ahi
+        self.assertEqual(st.target_id, 7)
+
+    def test_no_reengancha_un_id_nuevo_lejos(self):
+        st = fl.FollowState()
+        st.set_target(7, now=0.0)
+        st.update(self.persons((7, 2.0, 0.0)), now=0.1)
+        st.update(self.persons((9, 4.0, 1.5)), now=0.5)
+        self.assertEqual(st.target_id, 7)
+
+    def test_no_reengancha_despues_de_perdido(self):
+        st = fl.FollowState(lost_timeout=2.0)
+        st.set_target(7, now=0.0)
+        st.update(self.persons((7, 2.0, 0.0)), now=0.1)
+        self.assertEqual(st.update([], now=2.5)[0], fl.FollowState.LOST)
+        self.assertEqual(st.update(self.persons((9, 2.0, 0.0)), now=3.0)[0], fl.FollowState.LOST)
+
     def test_dejar_de_seguir(self):
         st = fl.FollowState()
         st.set_target(7, now=0.0)

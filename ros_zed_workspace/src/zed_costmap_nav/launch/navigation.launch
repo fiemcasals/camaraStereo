@@ -20,6 +20,10 @@
     <param name="/zed/zed_node/object_detection/od_enabled" value="true" />
     <param name="/zed/zed_node/object_detection/model" value="MULTI_CLASS_BOX_MEDIUM" />
     <param name="/zed/zed_node/object_detection/object_tracking_enabled" value="true" />
+    <!-- RF-10: con 0,5 s (default) la ZED reiniciaba el ID de tracking de una
+         persona ante cualquier oclusion breve: 5 IDs nuevos en 45 s con 2-3
+         personas. 1,5 s mantiene el ID; person_follower ademas reengancha. -->
+    <param name="/zed/zed_node/object_detection/prediction_timeout" value="1.5" />
     <param name="/zed/zed_node/object_detection/mc_electronics" value="false" />
     <param name="/zed/zed_node/object_detection/mc_fruit_vegetable" value="false" />
     <param name="/zed/zed_node/object_detection/mc_sport" value="false" />
