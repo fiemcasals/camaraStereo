@@ -5,10 +5,17 @@ def nada(x):
     pass
 
 def main():
-    print("Iniciando Medidor de Profundidad - Calibración Manual Interactiva...")
-    cap = cv2.VideoCapture(2)
-    if not cap.isOpened():
-        print("Error: No se pudo abrir la cámara.")
+    print("Iniciando Mapa de Profundidad Denso...")
+    # Intentamos abrir la cámara en el índice 2 (ZED/Estéreo), si falla probamos otros (0, 1, 3, 4)
+    cap = None
+    for i in [2, 0, 1, 3, 4, 5]:
+        cap = cv2.VideoCapture(i)
+        if cap.isOpened():
+            print(f"Cámara abierta exitosamente en el índice {i}")
+            break
+
+    if cap is None or not cap.isOpened():
+        print("Error: No se pudo abrir ninguna cámara conectada al equipo.")
         return
 
     # Forzar la resolución nativa panorámica

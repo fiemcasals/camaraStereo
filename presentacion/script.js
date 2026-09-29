@@ -40,6 +40,15 @@ document.addEventListener('DOMContentLoaded', () => {
     nextBtn.addEventListener('click', nextSlide);
     prevBtn.addEventListener('click', prevSlide);
 
+    // Make dots clickable to jump to specific slides
+    dots.forEach((dot, index) => {
+        dot.style.cursor = 'pointer'; // Add cursor style for UX
+        dot.addEventListener('click', () => {
+            currentSlide = index;
+            updateSlides();
+        });
+    });
+
     // Keyboard navigation
     document.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowRight' || e.key === ' ') {

@@ -49,7 +49,8 @@ def objects_cb(msg, ctx):
         if not fl.is_person(obj.label) or not obj.tracking_available:
             continue
         corners = [(c.kp[0], c.kp[1]) for c in obj.bounding_box_2d.corners]
-        p = {'id': int(obj.label_id), 'x': float(obj.position[0]), 'y': float(obj.position[1]),
+        # instance_id es el ID de seguimiento; label_id es la clase (persona = 0 para todas).
+        p = {'id': int(obj.instance_id), 'x': float(obj.position[0]), 'y': float(obj.position[1]),
              'bbox': [round(v, 4) for v in fl.normalize_bbox(corners, *ctx['img_size'])]}
         # dist None (null en el JSON) si la ZED no dio posicion valida: NaN no es JSON
         # valido y el JSON.parse de seguir.js falla con el mensaje entero.

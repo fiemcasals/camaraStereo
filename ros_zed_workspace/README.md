@@ -35,10 +35,40 @@ sudo docker-compose restart   # reinicio normal, recompila con catkin_make (~5 m
 
 Solo usar `sudo docker-compose up -d` (sin `--build`) si cambió `docker-compose.yml` (montajes/variables de entorno) — ese comando recrea el contenedor y **pierde cualquier paquete `apt install`ado en caliente que no esté en el `Dockerfile`**.
 
-## Dashboard
+## Dashboard (en la Jetson, con el robot corriendo)
 
 - `http://192.168.55.1:8080/` — mapa de calor de profundidad + mapa 2D con la ruta planificada, en vivo.
 - `http://192.168.55.1:8080/map_editor.html` — cargar/editar waypoints y conexiones sobre un mapa real.
+
+## Servicio de trazado de rutas — cómo levantarlo en local (sin Jetson ni Docker)
+
+Es la parte de `web_dashboard/`: login con aprobación de administrador, editor de mapas
+(`map_editor.html`, waypoints sobre OpenStreetMap) y cálculo de la ruta más corta entre dos
+puntos (`waypoint_router.py`, Dijkstra bidireccional). Es un servidor Python que **solo usa la
+librería estándar** (`http.server` + `sqlite3`), así que no hace falta instalar nada ni tener la
+cámara/Jetson conectada — sirve para probar el flujo completo de punta a punta desde la laptop.
+
+```bash
+cd ros_zed_workspace/web_dashboard
+python3 server.py            # puerto 8080 por default
+# si el 8080 ya está ocupado por otra cosa en tu máquina, pasale otro puerto:
+python3 server.py 8090
+```
+
+Después abrir en el navegador `http://localhost:8080/login.html` (o el puerto que hayas usado).
+
+- Usuario administrador ya creado: `admin` / `admin123` (ver `db.ADMIN_DEFAULT_PASSWORD` en `db.py`).
+- Los usuarios nuevos quedan `pending` hasta que el admin los aprueba desde `/admin.html`.
+- Los "mails" (aprobación, reset de contraseña) no se mandan de verdad: quedan simulados en un
+  archivo que indica la consola al arrancar (ver `mail_outbox.py`).
+- La base es un SQLite local (`web_dashboard/app.db`) — se crea sola la primera vez.
+- Para cortar el servidor: `Ctrl+C` (o matar el proceso si quedó corriendo en background).
+
+Flujo típico para probar el ruteo:
+1. Login con `admin` / `admin123`.
+2. Ir a `map_editor.html`, cargar/dibujar waypoints y conexiones sobre el mapa, guardar el mapa.
+3. Marcar origen y destino → el servidor calcula la ruta más corta vía `POST /api/route`
+   (reusa el mismo `waypoint_router.py` que corre en la Jetson dentro del stack de ROS).
 
 ## Debug visual (rviz / rqt_reconfigure)
 

@@ -5,3 +5,4 @@ __pycache__/
 *.jpg
 *.jpeg
 .DS_Store
+credenciales_jetson.txt

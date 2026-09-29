@@ -32,11 +32,16 @@ def main():
     # Inicializamos la cámara bifoco conectada por USB. 
     # Usualmente, las cámaras estéreo USB envían una sola imagen ancha (side-by-side).
     # Por ejemplo, una resolución de 1280x480 contiene dos imágenes de 640x480 pegadas.
-    cap = cv2.VideoCapture(2)
+    # Intentamos abrir la cámara en el índice 2 (ZED/Estéreo), si falla probamos otros (0, 1, 3, 4)
+    cap = None
+    for i in [2, 0, 1, 3, 4, 5]:
+        cap = cv2.VideoCapture(i)
+        if cap.isOpened():
+            print(f"Cámara abierta exitosamente en el índice {i}")
+            break
     
-    # Comprobamos si la cámara se abrió correctamente
-    if not cap.isOpened():
-        print("Error: No se pudo abrir la cámara.")
+    if cap is None or not cap.isOpened():
+        print("Error: No se pudo abrir ninguna cámara conectada al equipo.")
         return
 
     # Forzar la resolución nativa panorámica de la ZED (VGA side-by-side)

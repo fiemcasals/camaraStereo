@@ -1,9 +1,9 @@
-# Usa la imagen oficial de Stereolabs que ya trae preinstalado:
-# - Ubuntu 22.04
-# - NVIDIA CUDA 12.1
+# Usa la imagen oficial de Stereolabs específica para la Jetson (Arquitectura L4T / ARM64):
+# - Ubuntu 20.04
+# - NVIDIA CUDA 11.4
 # - ZED SDK 4.1
-# - OpenGL (para poder visualizar las ventanas de OpenCV)
-FROM stereolabs/zed:4.1-gl-devel-cuda12.1-ubuntu22.04
+# - OpenCV
+FROM stereolabs/zed:4.1-devel-l4t-r35.2
 
 # Variables de entorno para evitar interacciones durante la instalación
 ENV DEBIAN_FRONTEND=noninteractive
