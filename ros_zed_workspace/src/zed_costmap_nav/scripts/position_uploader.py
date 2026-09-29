@@ -27,6 +27,8 @@ import time
 import urllib.error
 import urllib.request
 
+USER_AGENT = 'vad-position-uploader/1.0'
+
 # Radio medio de la Tierra (m), para el recorrido simulado.
 EARTH_R = 6371000.0
 
@@ -95,7 +97,10 @@ class LatestSender:
     def _http_post(self, payload):
         req = urllib.request.Request(
             self.url, data=json.dumps(payload).encode(), method='POST',
-            headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + self.token})
+            headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + self.token,
+                     # Cloudflare (delante de la VPS) responde 403 al User-Agent por
+                     # defecto de Python-urllib.
+                     'User-Agent': USER_AGENT})
         with urllib.request.urlopen(req, timeout=self.timeout) as resp:
             resp.read()
 
