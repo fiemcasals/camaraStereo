@@ -13,7 +13,7 @@ SIM=false; [ "${1:-}" = "--simular" ] && SIM=true
 set -a; . "$ENVF"; set +a
 docker exec ros_zed_navigation pkill -f position_uploader.py 2>/dev/null || true
 docker exec -d -e VAD_SERVER_URL -e VAD_VEHICLE_ID -e VAD_VEHICLE_TOKEN ros_zed_navigation bash -c \
-  "source /root/catkin_ws/devel/setup.bash; exec python3 /root/catkin_ws/src/zed_costmap_nav/scripts/position_uploader.py _simulate:=$SIM > /tmp/position_uploader.log 2>&1"
+  "source /root/catkin_ws/devel/setup.bash; exec python3 -u /root/catkin_ws/src/zed_costmap_nav/scripts/position_uploader.py _simulate:=$SIM > /tmp/position_uploader.log 2>&1"
 sleep 3
 docker exec ros_zed_navigation tail -3 /tmp/position_uploader.log
 echo "Log: docker exec ros_zed_navigation tail -f /tmp/position_uploader.log"
