@@ -47,7 +47,8 @@
             <div class="logo">VAD<span>MAP</span></div>
             <div style="display:flex; align-items:center; gap:1rem;">
                 <span id="whoami" class="hint" style="margin:0;"></span>
-                <a class="back-link" href="index.html">&larr; Volver al dashboard</a>
+                <span id="vehicleBadge" class="hint" style="margin:0;">Vehículo: sin datos</span>
+                <a class="back-link" href="/presupuesto/">Presupuesto</a>
                 <a class="back-link" href="#" id="logoutLink">Cerrar sesión</a>
             </div>
         </header>
@@ -409,12 +410,44 @@
             }
         };
 
+        // HU-02: posicion real del vehiculo. La Jetson la manda a la VPS una
+        // vez por segundo; aca se consulta cada 1,5 s. Sin datos en 10 s = sin senal.
+        const vehicleMarkers = {};
+        let vehicleCentered = false;
+        async function refreshVehicles() {
+            let data;
+            try {
+                const res = await fetch('/api/vehicles');
+                if (!res.ok) return;
+                data = await res.json();
+            } catch (e) { return; }
+            const badge = document.getElementById('vehicleBadge');
+            if (!data.vehicles.length) { badge.textContent = 'Vehículo: sin datos'; return; }
+            badge.textContent = data.vehicles.map(v =>
+                `${v.id}: ${v.stale ? 'SIN SEÑAL (hace ' + Math.round(v.age_s) + ' s)' : (v.status || 'en línea')}`).join(' · ');
+            for (const v of data.vehicles) {
+                const color = v.stale ? '#9ca3af' : '#facc15';
+                const tip = `${v.id} · ${v.stale ? 'sin señal hace ' + Math.round(v.age_s) + ' s' : 'hace ' + v.age_s.toFixed(1) + ' s'}` +
+                    (v.heading !== null ? ` · rumbo ${Math.round(v.heading)}°` : '');
+                if (!vehicleMarkers[v.id]) {
+                    vehicleMarkers[v.id] = L.circleMarker([v.lat, v.lon], {
+                        radius: 10, color: '#02040a', weight: 2, fillColor: color, fillOpacity: 0.95
+                    }).addTo(map).bindTooltip(tip, { permanent: true, direction: 'top', offset: [0, -10] });
+                } else {
+                    vehicleMarkers[v.id].setLatLng([v.lat, v.lon]).setStyle({ fillColor: color }).setTooltipContent(tip);
+                }
+                if (!vehicleCentered && !v.stale) { map.setView([v.lat, v.lon], 18); vehicleCentered = true; }
+            }
+        }
+
         (async () => {
             const ok = await requireAuth();
             if (!ok) return;
             setMode('add');
             redraw();
             refreshMapList();
+            refreshVehicles();
+            setInterval(refreshVehicles, 1500);
         })();
     </script>
 </body>

@@ -16,10 +16,14 @@ Usuario admin ya creado: admin / admin123 (ver db.ADMIN_DEFAULT_PASSWORD).
 import sys
 import os
 import json
+import math
 import secrets
+import time
 import http.server
 import http.cookies
+import urllib.error
 import urllib.parse
+import urllib.request
 
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src", "zed_costmap_nav", "scripts"))
@@ -30,6 +34,20 @@ import waypoint_router
 
 STATIC_DIR = os.path.dirname(__file__)
 SESSION_COOKIE = "vad_session"
+
+# HU-02: tokens de los vehiculos, "vad-01:token1,vad-02:token2". Sin esto el
+# endpoint de posicion rechaza todo (401).
+VEHICLE_TOKENS = dict(
+    item.split(":", 1) for item in os.environ.get("VAD_VEHICLE_TOKENS", "").split(",") if ":" in item
+)
+# Presupuesto (app Node aparte en la VPS): /presupuesto/* y /api/budget se
+# reenvian ahi, asi comparte el dominio sin tocar esa app. Vacio = no se usa.
+PRESUPUESTO_UPSTREAM = os.environ.get("VAD_PRESUPUESTO_UPSTREAM", "").rstrip("/")
+# Pagina a la que lleva "/". En la VPS no corre ROS, asi que el HUD de
+# index.html no sirve: se usa VAD_HOME=/map_editor.html.
+HOME_PAGE = os.environ.get("VAD_HOME", "/index.html")
+# Sin senal: si la ultima posicion tiene mas de esto, el mapa lo avisa.
+POSITION_STALE_S = 10
 
 # token de sesion -> username. En memoria: alcanza para un demo local, se
 # pierde al reiniciar el servidor (igual que las sesiones de cualquier app
@@ -66,7 +84,9 @@ def get_session_user(handler):
 
 
 def set_session_cookie(handler, token):
-    handler.send_header("Set-Cookie", f"{SESSION_COOKIE}={token}; Path=/; HttpOnly")
+    # Detras del proxy con HTTPS la cookie viaja solo cifrada.
+    secure = "; Secure; SameSite=Lax" if handler.headers.get("X-Forwarded-Proto") == "https" else ""
+    handler.send_header("Set-Cookie", f"{SESSION_COOKIE}={token}; Path=/; HttpOnly{secure}")
 
 
 def clear_session_cookie(handler):
@@ -102,6 +122,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+
+        if self.is_presupuesto_path(path):
+            return self.proxy_presupuesto(parsed)
+
+        if path == "/api/vehicles":
+            user = self.require_login()
+            if user is None:
+                return
+            conn = self.conn()
+            rows = db.list_positions(conn)
+            conn.close()
+            now = time.time()
+            return json_response(self, 200, {"vehicles": [{
+                "id": r["vehicle_id"], "lat": r["lat"], "lon": r["lon"], "heading": r["heading"],
+                "status": r["status"], "age_s": round(now - r["updated_at"], 1),
+                "stale": now - r["updated_at"] > POSITION_STALE_S,
+            } for r in rows]})
 
         if path == "/api/me":
             username = get_session_user(self)
@@ -163,6 +200,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+        if self.is_presupuesto_path(path):
+            return self.proxy_presupuesto(parsed)
         try:
             body = read_json_body(self)
         except (ValueError, json.JSONDecodeError):
@@ -184,6 +223,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.handle_route(body)
         if path == "/api/admin/approve":
             return self.handle_admin_approve(body)
+        if path.startswith("/api/vehicles/") and path.endswith("/position"):
+            return self.handle_vehicle_position(path.split("/")[3], body)
 
         return json_response(self, 404, {"error": "no encontrado"})
 
@@ -353,24 +394,83 @@ class Handler(http.server.BaseHTTPRequestHandler):
                                               "message": "sin camino posible entre esos dos puntos"})
         return json_response(self, 200, {"ok": True, "route": result})
 
+    def handle_vehicle_position(self, vehicle_id, body):
+        """HU-02: la Jetson manda su posicion con 'Authorization: Bearer <token>'."""
+        expected = VEHICLE_TOKENS.get(vehicle_id)
+        auth = self.headers.get("Authorization", "")
+        given = auth[7:] if auth.startswith("Bearer ") else ""
+        if not expected or not secrets.compare_digest(given, expected):
+            return json_response(self, 401, {"error": "token de vehiculo invalido"})
+        try:
+            lat, lon = float(body["lat"]), float(body["lon"])
+            heading = float(body["heading"]) if body.get("heading") is not None else None
+        except (KeyError, TypeError, ValueError):
+            return json_response(self, 400, {"error": "faltan 'lat' y 'lon' numericos"})
+        if not (math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180):
+            return json_response(self, 400, {"error": "lat/lon fuera de rango"})
+        if heading is not None and not math.isfinite(heading):
+            heading = None
+        status = str(body.get("status") or "")[:40]
+        conn = self.conn()
+        db.upsert_position(conn, vehicle_id, lat, lon, heading, status)
+        conn.close()
+        return json_response(self, 200, {"ok": True})
+
+    # ---------- presupuesto (app aparte) ----------
+
+    def is_presupuesto_path(self, path):
+        return bool(PRESUPUESTO_UPSTREAM) and (
+            path == "/presupuesto" or path.startswith("/presupuesto/") or path == "/api/budget")
+
+    def proxy_presupuesto(self, parsed):
+        if parsed.path == "/presupuesto":
+            self.send_response(301)
+            self.send_header("Location", "/presupuesto/")
+            self.end_headers()
+            return
+        upstream_path = parsed.path[len("/presupuesto"):] if parsed.path.startswith("/presupuesto/") else parsed.path
+        url = PRESUPUESTO_UPSTREAM + upstream_path + (f"?{parsed.query}" if parsed.query else "")
+        length = int(self.headers.get("Content-Length", 0))
+        data = self.rfile.read(length) if length else None
+        headers = {"Content-Type": self.headers.get("Content-Type", "application/octet-stream")} if data else {}
+        req = urllib.request.Request(url, data=data, method=self.command, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                status, body, ctype = resp.status, resp.read(), resp.headers.get("Content-Type")
+        except urllib.error.HTTPError as e:
+            status, body, ctype = e.code, e.read(), e.headers.get("Content-Type")
+        except (urllib.error.URLError, OSError):
+            return json_response(self, 502, {"error": "el presupuesto no responde"})
+        self.send_response(status)
+        self.send_header("Content-Type", ctype or "application/octet-stream")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     # ---------- estaticos ----------
 
     def serve_static(self, path):
         if path == "/":
+            if HOME_PAGE != "/index.html":
+                self.send_response(302)
+                self.send_header("Location", HOME_PAGE)
+                self.end_headers()
+                return
             path = "/index.html"
         safe_path = os.path.normpath(path).lstrip("/")
         full_path = os.path.join(STATIC_DIR, safe_path)
         if not os.path.abspath(full_path).startswith(os.path.abspath(STATIC_DIR)):
             return json_response(self, 403, {"error": "prohibido"})
-        if not os.path.isfile(full_path):
-            return json_response(self, 404, {"error": "no encontrado"})
-
         content_types = {
             ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "application/javascript",
-            ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg",
+            ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml",
         }
         ext = os.path.splitext(full_path)[1]
-        content_type = content_types.get(ext, "application/octet-stream")
+        # Solo archivos web: nunca app.db, mail_outbox.log (links de reseteo)
+        # ni el codigo .py, que viven en la misma carpeta.
+        if ext not in content_types or not os.path.isfile(full_path):
+            return json_response(self, 404, {"error": "no encontrado"})
+        content_type = content_types[ext]
         with open(full_path, "rb") as f:
             data = f.read()
         self.send_response(200)
@@ -387,10 +487,11 @@ def make_server(port=8080, db_path=None):
 
 
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("VAD_PORT", 8080))
     server = make_server(port)
     print(f"Servidor local del demo VAD en http://localhost:{port}/login.html")
-    print(f"Admin ya creado: usuario '{db.ADMIN_USERNAME}' / contrasenia '{db.ADMIN_DEFAULT_PASSWORD}'")
+    if not os.environ.get("VAD_ADMIN_PASSWORD"):
+        print(f"Admin ya creado: usuario '{db.ADMIN_USERNAME}' / contrasenia '{db.ADMIN_DEFAULT_PASSWORD}'")
     print(f"Los 'mails' simulados quedan en {mail_outbox.OUTBOX_PATH}")
     try:
         server.serve_forever()

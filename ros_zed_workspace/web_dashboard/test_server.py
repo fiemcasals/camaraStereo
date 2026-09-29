@@ -14,6 +14,7 @@ o directamente:
 import unittest
 import threading
 import http.client
+import http.server
 import json
 import tempfile
 import os
@@ -291,6 +292,126 @@ class TestPaginasEstaticas(ServerTestCase):
         conn.request("GET", "/no-existe.html")
         resp = conn.getresponse()
         self.assertEqual(resp.status, 404)
+
+
+def raw_request(port, method, path, body=None, headers=None):
+    conn = http.client.HTTPConnection("localhost", port, timeout=5)
+    payload = json.dumps(body).encode() if isinstance(body, (dict, list)) else body
+    h = {"Content-Type": "application/json"} if payload is not None else {}
+    h.update(headers or {})
+    conn.request(method, path, body=payload, headers=h)
+    resp = conn.getresponse()
+    data = resp.read()
+    conn.close()
+    return resp.status, data, resp
+
+
+class TestPosicionVehiculo(ServerTestCase):
+    """HU-02: la Jetson manda su posicion con token; el mapa la lee con login."""
+
+    TOKEN = "token-de-prueba-123"
+
+    def setUp(self):
+        super().setUp()
+        self._tokens = dict(server_module.VEHICLE_TOKENS)
+        server_module.VEHICLE_TOKENS.clear()
+        server_module.VEHICLE_TOKENS["vad-01"] = self.TOKEN
+
+    def tearDown(self):
+        server_module.VEHICLE_TOKENS.clear()
+        server_module.VEHICLE_TOKENS.update(self._tokens)
+        super().tearDown()
+
+    def post_pos(self, body, token=TOKEN, vehicle="vad-01"):
+        headers = {"Authorization": f"Bearer {token}"} if token is not None else {}
+        status, data, _ = raw_request(self.port, "POST", f"/api/vehicles/{vehicle}/position", body, headers)
+        return status, json.loads(data)
+
+    def test_con_token_guarda_y_el_mapa_la_ve(self):
+        status, _ = self.post_pos({"lat": -34.6037, "lon": -58.3816, "heading": 90.0, "status": "navegando"})
+        self.assertEqual(status, 200)
+        status, data = self.admin_client().get("/api/vehicles")
+        self.assertEqual(status, 200)
+        v = data["vehicles"][0]
+        self.assertEqual((v["id"], v["lat"], v["lon"], v["heading"], v["status"]), ("vad-01", -34.6037, -58.3816, 90.0, "navegando"))
+        self.assertFalse(v["stale"])
+        self.assertLess(v["age_s"], 5)
+
+    def test_la_ultima_posicion_reemplaza_a_la_anterior(self):
+        self.post_pos({"lat": -34.0, "lon": -58.0})
+        self.post_pos({"lat": -34.1, "lon": -58.1})
+        _, data = self.admin_client().get("/api/vehicles")
+        self.assertEqual(len(data["vehicles"]), 1)
+        self.assertEqual(data["vehicles"][0]["lat"], -34.1)
+
+    def test_sin_token_token_invalido_u_otro_vehiculo_da_401(self):
+        self.assertEqual(self.post_pos({"lat": 1, "lon": 1}, token=None)[0], 401)
+        self.assertEqual(self.post_pos({"lat": 1, "lon": 1}, token="otro")[0], 401)
+        self.assertEqual(self.post_pos({"lat": 1, "lon": 1}, vehicle="vad-99")[0], 401)
+
+    def test_coordenadas_invalidas_dan_400(self):
+        self.assertEqual(self.post_pos({"lat": 95, "lon": 1})[0], 400)
+        self.assertEqual(self.post_pos({"lat": "abc", "lon": 1})[0], 400)
+        self.assertEqual(self.post_pos({"lon": 1})[0], 400)
+
+    def test_ver_vehiculos_exige_login(self):
+        status, _ = ApiClient(self.port).get("/api/vehicles")
+        self.assertEqual(status, 401)
+
+    def test_sin_senal_si_la_posicion_es_vieja(self):
+        self.post_pos({"lat": -34.0, "lon": -58.0})
+        conn = db.get_conn(self.db_path)
+        conn.execute("UPDATE vehicle_positions SET updated_at = updated_at - 30")
+        conn.commit(); conn.close()
+        _, data = self.admin_client().get("/api/vehicles")
+        self.assertTrue(data["vehicles"][0]["stale"])
+
+
+class FakePresupuesto(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+
+    def do_GET(self):
+        body = f"presupuesto GET {self.path}".encode()
+        self.send_response(200); self.send_header("Content-Type", "text/html"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
+
+    def do_POST(self):
+        n = int(self.headers.get("Content-Length", 0)); got = self.rfile.read(n)
+        body = b"guardado:" + got
+        self.send_response(200); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
+
+
+class TestPresupuestoYSeguridad(ServerTestCase):
+    def setUp(self):
+        super().setUp()
+        self.up = http.server.HTTPServer(("localhost", 0), FakePresupuesto)
+        threading.Thread(target=self.up.serve_forever, daemon=True).start()
+        self._old = server_module.PRESUPUESTO_UPSTREAM
+        server_module.PRESUPUESTO_UPSTREAM = f"http://localhost:{self.up.server_address[1]}"
+
+    def tearDown(self):
+        server_module.PRESUPUESTO_UPSTREAM = self._old
+        self.up.shutdown(); self.up.server_close()
+        super().tearDown()
+
+    def test_presupuesto_se_reenvia_sin_el_prefijo(self):
+        status, data, _ = raw_request(self.port, "GET", "/presupuesto/presupuesto.html")
+        self.assertEqual((status, data), (200, b"presupuesto GET /presupuesto.html"))
+        status, data, _ = raw_request(self.port, "GET", "/presupuesto/")
+        self.assertEqual(data, b"presupuesto GET /")
+
+    def test_presupuesto_sin_barra_redirige(self):
+        status, _, resp = raw_request(self.port, "GET", "/presupuesto")
+        self.assertEqual((status, resp.getheader("Location")), (301, "/presupuesto/"))
+
+    def test_api_budget_se_reenvia_con_el_cuerpo(self):
+        status, data, _ = raw_request(self.port, "POST", "/api/budget", {"total": 10})
+        self.assertEqual((status, data), (200, b'guardado:{"total": 10}'))
+
+    def test_no_se_sirven_db_log_ni_codigo(self):
+        for path in ("/app.db", "/mail_outbox.log", "/server.py", "/db.py"):
+            status, _, _ = raw_request(self.port, "GET", path)
+            self.assertEqual(status, 404, path)
 
 
 if __name__ == "__main__":

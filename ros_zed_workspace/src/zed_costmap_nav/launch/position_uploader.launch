@@ -1,0 +1,13 @@
+<launch>
+    <!-- HU-02: manda la posicion del vehiculo a la VPS (1 por segundo).
+         VAD_SERVER_URL, VAD_VEHICLE_ID y VAD_VEHICLE_TOKEN salen del entorno
+         (ver docker-compose / .env de la Jetson); el token no va al repo.
+         simulate:=true recorre un circulo de 10 m para probar sin GPS. -->
+    <arg name="simulate" default="false" />
+    <arg name="fix_topic" default="/gps/fix" />
+    <node pkg="zed_costmap_nav" type="position_uploader.py" name="position_uploader" output="screen">
+        <param name="simulate" value="$(arg simulate)" />
+        <param name="fix_topic" value="$(arg fix_topic)" />
+        <param name="rate" value="1.0" />
+    </node>
+</launch>

@@ -29,6 +29,7 @@ catkin_install_python(PROGRAMS
   scripts/scan_to_costmap.py
   scripts/sensor_tf_broadcaster.py
   scripts/speed_moderator.py
+  scripts/position_uploader.py
   scripts/waypoint_router.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

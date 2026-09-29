@@ -15,10 +15,12 @@ import secrets
 import time
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "app.db")
+DB_PATH = os.environ.get("VAD_DB_PATH") or os.path.join(os.path.dirname(__file__), "app.db")
 ADMIN_EMAIL = "mauriciocasals90@gmail.com"
 ADMIN_USERNAME = "admin"
-ADMIN_DEFAULT_PASSWORD = "admin123"  # solo para el demo local, cambiar en un uso real
+# En la VPS se define VAD_ADMIN_PASSWORD (ver deploy/); admin123 queda solo
+# para el demo local. Se usa unicamente al crear el admin la primera vez.
+ADMIN_DEFAULT_PASSWORD = os.environ.get("VAD_ADMIN_PASSWORD") or "admin123"
 RESET_TOKEN_TTL_SECONDS = 30 * 60
 
 
@@ -59,6 +61,18 @@ def init_db(db_path=None):
             created_at REAL NOT NULL,
             updated_at REAL NOT NULL,
             UNIQUE(owner_id, name)
+        );
+
+        -- HU-02: ultima posicion conocida de cada vehiculo (la manda la
+        -- Jetson una vez por segundo). Solo la ultima: el historial no hace
+        -- falta para mostrar el auto en el mapa.
+        CREATE TABLE IF NOT EXISTS vehicle_positions (
+            vehicle_id TEXT PRIMARY KEY,
+            lat REAL NOT NULL,
+            lon REAL NOT NULL,
+            heading REAL,
+            status TEXT,
+            updated_at REAL NOT NULL
         );
         """
     )
@@ -169,3 +183,18 @@ def get_map(conn, owner_id, map_id):
 def delete_map(conn, owner_id, map_id):
     conn.execute("DELETE FROM maps WHERE owner_id = ? AND id = ?", (owner_id, map_id))
     conn.commit()
+
+
+def upsert_position(conn, vehicle_id, lat, lon, heading, status):
+    conn.execute(
+        "INSERT INTO vehicle_positions (vehicle_id, lat, lon, heading, status, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(vehicle_id) DO UPDATE SET lat = excluded.lat, "
+        "lon = excluded.lon, heading = excluded.heading, status = excluded.status, "
+        "updated_at = excluded.updated_at",
+        (vehicle_id, lat, lon, heading, status, time.time()),
+    )
+    conn.commit()
+
+
+def list_positions(conn):
+    return conn.execute("SELECT * FROM vehicle_positions ORDER BY vehicle_id").fetchall()

@@ -1,0 +1,27 @@
+# HU-02: vad.misitiowebpersonal.com.ar -> Nginx Proxy Manager -> vad-web:80.
+# Sin puertos publicados: solo se llega por el proxy (red net-proxy).
+# El presupuesto (vad-presupuesto-app) sigue en su contenedor y se sirve en
+# /presupuesto/ a traves de este servidor.
+services:
+  vad-web:
+    build:
+      context: ..
+      dockerfile: deploy_vps/Dockerfile
+    container_name: vad-web
+    restart: unless-stopped
+    env_file: .env          # VAD_ADMIN_PASSWORD y VAD_VEHICLE_TOKENS; no va al repo
+    environment:
+      - VAD_PORT=80
+      - VAD_DB_PATH=/data/app.db
+      - VAD_HOME=/map_editor.html
+      - VAD_PRESUPUESTO_UPSTREAM=http://vad-presupuesto-app:80
+    volumes:
+      - ./data:/data
+    expose:
+      - "80"
+    networks:
+      - net-proxy
+
+networks:
+  net-proxy:
+    external: true
