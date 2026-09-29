@@ -17,9 +17,9 @@ C=ros_zed_navigation
 OUT=$(eval echo ~${SUDO_USER:-$USER})/medicion_capacidad_$(date +%Y%m%d_%H%M)
 mkdir -p "$OUT"
 ROS="source /opt/ros/noetic/setup.bash; source /root/catkin_ws/devel/setup.bash"
-TOPICS="/zed/zed_node/depth/depth_registered /zed/zed_node/obj_det/objects /zed/zed_node/imu/data /scan /move_base/local_costmap/costmap_updates /odometry/filtered"
-# (el costmap local completo solo se republica si cambia de tamaño; las
-# actualizaciones periodicas salen por costmap_updates)
+TOPICS="/zed/zed_node/depth/depth_registered /zed/zed_node/obj_det/objects /zed/zed_node/imu/data /scan /move_base/local_costmap/costmap /odometry/filtered"
+# (local_costmap usa always_send_full_costmap: true, asi que el grid completo
+# sale por costmap a publish_frequency; costmap_updates no existe)
 
 dexec() { docker exec "$C" bash -c "$ROS; $1"; }
 
