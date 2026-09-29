@@ -1,0 +1,17 @@
+# Fase 2.3: lista de capas CON la preferencia de terreno aprendida. Se carga
+# encima de local/global_costmap_params.yaml solo si navigation.launch recibe
+# use_learned_traversability:=true (ahi tambien arranca traversability_infer_node,
+# que es quien publica /learned_traversability_costmap). Sin ese nodo, un
+# StaticLayer deja a move_base esperando el mapa y la navegacion no arranca.
+local_costmap:
+  plugins:
+    - {name: scan_static_layer, type: "costmap_2d::StaticLayer"}
+    - {name: lane_keepout_layer, type: "costmap_prohibition_layer_namespace::CostmapProhibitionLayer"}
+    - {name: learned_traversability_layer, type: "costmap_2d::StaticLayer"}
+    - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
+global_costmap:
+  plugins:
+    - {name: scan_static_layer, type: "costmap_2d::StaticLayer"}
+    - {name: lane_keepout_layer, type: "costmap_prohibition_layer_namespace::CostmapProhibitionLayer"}
+    - {name: learned_traversability_layer, type: "costmap_2d::StaticLayer"}
+    - {name: inflation_layer, type: "costmap_2d::InflationLayer"}

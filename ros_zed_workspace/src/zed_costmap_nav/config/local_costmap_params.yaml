@@ -5,11 +5,10 @@ local_costmap:
   plugins:
     - {name: scan_static_layer, type: "costmap_2d::StaticLayer"}
     - {name: lane_keepout_layer, type: "costmap_prohibition_layer_namespace::CostmapProhibitionLayer"}
-    # Fase 2.3: preferencia de terreno aprendida, capa aditiva (nunca letal).
-    # Si traversability_infer_node.py no esta corriendo (todavia no hay
-    # modelo entrenado), esta capa simplemente no recibe nada y queda en
-    # "desconocido" -- no rompe la navegacion actual.
-    - {name: learned_traversability_layer, type: "costmap_2d::StaticLayer"}
+    # La capa learned_traversability_layer (Fase 2.3) NO va aca: un StaticLayer
+    # bloquea el arranque de move_base hasta recibir su primer mapa ("Requesting
+    # the map..." para siempre si nadie lo publica). Se agrega solo con
+    # use_learned_traversability:=true, desde costmap_plugins_learned.yaml.
     - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
   global_frame: odom
   robot_base_frame: base_link

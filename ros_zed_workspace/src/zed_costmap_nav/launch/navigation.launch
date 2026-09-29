@@ -76,6 +76,8 @@
         <rosparam file="$(find zed_costmap_nav)/config/costmap_common_params.yaml" command="load" ns="local_costmap" />
         <rosparam file="$(find zed_costmap_nav)/config/local_costmap_params.yaml" command="load" />
         <rosparam file="$(find zed_costmap_nav)/config/global_costmap_params.yaml" command="load" />
+        <rosparam file="$(find zed_costmap_nav)/config/costmap_plugins_learned.yaml" command="load"
+                  if="$(arg use_learned_traversability)" />
     </node>
 
     <!-- 3.5 Baja la velocidad cerca de personas/animales (Fase 0.3). Escucha
